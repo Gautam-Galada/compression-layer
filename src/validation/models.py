@@ -96,7 +96,7 @@ class ModelClient:
 
         # Check cache first
         if use_cache and self.cache and (cached := self.cache.get(cache_key)):
-            return cached["text"]
+            return str(cached["text"])
 
         # Call API with retry
         response = await self._call_with_retry(prompt, max_tokens, temperature)

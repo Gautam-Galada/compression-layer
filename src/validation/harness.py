@@ -17,7 +17,7 @@ class CompressionPair(BaseModel):
     verbose: str
     compressed: str
     domain: str  # "nl" | "code" | "mixed"
-    metadata: dict | None = None
+    metadata: dict[str, str] | None = None
 
 
 @dataclass

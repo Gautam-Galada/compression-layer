@@ -50,7 +50,7 @@ class SemanticCache:
     def delete(self, key: str) -> bool:
         """Delete a key from the cache. Returns True if key existed."""
         hashed = self._hash_key(key)
-        return self._cache.delete(hashed)
+        return bool(self._cache.delete(hashed))
 
     def clear(self) -> None:
         """Clear all cached data."""
