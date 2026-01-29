@@ -93,7 +93,7 @@ dependencies = [
     "anthropic>=0.40.0",
     "openai>=1.50.0",
     "google-genai>=1.0.0",
-    "tinker-sdk>=0.1.0",
+    "tinker",
     
     # Local inference (MLX)
     "mlx>=0.20.0",
@@ -404,7 +404,7 @@ from src.training.train_tinker import TinkerTrainingConfig, run_training_loop, w
 from src.utils.config import load_tinker_training_config
 
 
-def train_on_tinker(config_path: Path, output_dir: Path) -> Path:
+def train_on_tinker_from_config(config_path: Path, output_dir: Path) -> Path:
     config = load_tinker_training_config(config_path)
     service_client = ServiceClient(api_key=os.environ["TINKER_API_KEY"])
     training_client = service_client.create_lora_training_client(
@@ -421,7 +421,7 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=Path, default="configs/training.yaml")
     parser.add_argument("--output", type=Path, default="models/adapters/tinker")
     args = parser.parse_args()
-    metadata_path = train_on_tinker(args.config, args.output)
+    metadata_path = train_on_tinker_from_config(args.config, args.output)
     print(f"Run metadata: {metadata_path}")
 ```
 
@@ -471,36 +471,36 @@ if __name__ == "__main__":
 ```yaml
 # configs/training.yaml
 
-# === TINKER (Production) ===
-model:
-  name: "Qwen/Qwen3-8B"
-  # Alternatives:
-  #   - Qwen/Qwen3-4B-Instruct-2507 (faster, cheaper)
-  #   - Qwen/Qwen3-30B-A3B (MoE, good quality/cost ratio)
-
-lora:
-  r: 64
-  alpha: 128
-  target_modules:
-    - q_proj
-    - k_proj
-    - v_proj
-    - o_proj
-    - gate_proj
-    - up_proj
-    - down_proj
-
-training:
-  epochs: 3
-  batch_size: 4
-  lr: 2.0e-4
-
-# === LOCAL MLX (Iteration) ===
+# === LOCAL (MLX on M4 Pro) ===
 local:
-  model: "mlx-community/Qwen3-4B-4bit"
-  batch_size: 2
-  iters: 1000
-  lr: 1.0e-4
+  model: "mlx-community/Qwen3-4B-Instruct-4bit"
+  lora:
+    rank: 8
+    alpha: 16
+  training:
+    iters: 500
+    batch_size: 2
+    learning_rate: 1.0e-4
+
+# === CLOUD (Tinker) ===
+cloud:
+  model: "Qwen/Qwen3-8B"
+  lora:
+    rank: 64
+    alpha: 128
+    target_modules:
+      - q_proj
+      - k_proj
+      - v_proj
+      - o_proj
+      - gate_proj
+      - up_proj
+      - down_proj
+  training:
+    epochs: 3
+    steps: 300 # If omitted, computed as epochs * 100
+    batch_size: 4
+    learning_rate: 2.0e-4
 
 # === DATA ===
 data:

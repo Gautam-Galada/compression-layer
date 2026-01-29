@@ -84,7 +84,7 @@ Prioritized implementation tasks.
 ### P0 — Cloud Setup (Tinker)
 - [ ] Get Tinker API key from https://tinker.thinkingmachines.ai
 - [ ] Install: `pip install tinker`
-- [ ] Verify: `tinker auth check`
+- [ ] Verify API key is set in environment or `.env`
 
 ### P0 — Training Scripts
 - [ ] `src/training/train_mlx.py` — Local MLX training wrapper

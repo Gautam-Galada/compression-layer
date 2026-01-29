@@ -14,7 +14,7 @@ compression-layer/
 ├── src/
 │   ├── validation/     # Cross-model equivalence testing
 │   ├── generation/     # Compression pair generation
-│   ├── training/       # Unsloth fine-tuning pipeline
+│   ├── training/       # Tinker + MLX training
 │   ├── inference/      # Production compressor service
 │   └── utils/          # Tokenizers, caching, cost tracking
 ├── data/               # Corpora and generated datasets (gitignored)
