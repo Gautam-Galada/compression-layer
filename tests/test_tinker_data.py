@@ -15,7 +15,10 @@ class FakeTokenizer:
         return tokens
 
 
-DUMMY_MESSAGES = ["Hello", "World"]
+DUMMY_MESSAGES = [
+    {"role": "system", "content": "Hello"},
+    {"role": "assistant", "content": "World"},
+]
 
 
 def test_split_prompt_completion_requires_messages():
@@ -25,7 +28,12 @@ def test_split_prompt_completion_requires_messages():
 
 def test_split_prompt_completion_rejects_blank_message():
     with pytest.raises(ValueError):
-        split_prompt_completion(["Hello", " "])
+        split_prompt_completion(
+            [
+                {"role": "system", "content": "Hello"},
+                {"role": "assistant", "content": " "},
+            ]
+        )
 
 
 def test_render_chat_example_masks_prompt_tokens():
@@ -37,7 +45,7 @@ def test_render_chat_example_masks_prompt_tokens():
     completion_tokens = tokenizer.encode(completion, add_special_tokens=False)
     all_tokens = prompt_tokens + completion_tokens
 
-    model_tokens = datum.model_input.chunks[0].tokens
+    model_tokens = datum.model_input.to_ints()
     target_tokens = datum.loss_fn_inputs["target_tokens"].data
     weights = datum.loss_fn_inputs["weights"].data
 
