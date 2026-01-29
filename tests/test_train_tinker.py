@@ -31,4 +31,5 @@ def test_train_on_tinker_records_run_metadata(
     result = train_tinker.train_on_tinker(config, api_key="test", output_dir=tmp_path)
 
     assert result.run_id is not None
+    assert "FakeTrainingClient" in result.run_id
     assert (tmp_path / "runs" / f"{result.run_id}.json").exists()

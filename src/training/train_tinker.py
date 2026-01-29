@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import tinker
+if TYPE_CHECKING:
+    import tinker
 
 
 @dataclass(frozen=True)
@@ -36,10 +38,13 @@ class TinkerSDKClient:
 
     def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
-        self._service_client = tinker.ServiceClient(api_key=api_key)
+        import tinker
+
+        self._tinker = tinker
 
     def create_training_client(self, config: TinkerTrainingConfig) -> tinker.TrainingClient:
-        return self._service_client.create_lora_training_client(
+        service_client = self._tinker.ServiceClient(api_key=self.api_key)
+        return service_client.create_lora_training_client(
             base_model=config.base_model,
         )
 
@@ -48,8 +53,7 @@ def run_training_loop(
     training_client: tinker.TrainingClient,
     config: TinkerTrainingConfig,
 ) -> TrainingRunMetadata:
-    del training_client
-    run_id = f"run-{uuid4().hex}"
+    run_id = f"run-{training_client.__class__.__name__}-{uuid4().hex}"
     return TrainingRunMetadata(
         run_id=run_id,
         base_model=config.base_model,
