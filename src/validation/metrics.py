@@ -612,25 +612,27 @@ def compute_fact_overlap(
     calc = calculator or EquivalenceCalculator(semantic_weight=1.0, lexical_weight=0.0)
 
     # For each verbose fact, find best match in compressed facts
-    matches = 0
+    verbose_matches = 0
     for vf in verbose_facts:
         for cf in compressed_facts:
             sim = calc.compute_semantic_similarity(vf, cf)
             if sim > similarity_threshold:
-                matches += 1
+                verbose_matches += 1
                 break  # Early exit: found a match for this verbose fact
 
     # Symmetric: also check compressed -> verbose
+    compressed_matches = 0
     for cf in compressed_facts:
         for vf in verbose_facts:
             sim = calc.compute_semantic_similarity(cf, vf)
             if sim > similarity_threshold:
-                matches += 1
+                compressed_matches += 1
                 break  # Early exit: found a match for this compressed fact
 
-    # Average coverage
-    total_facts = len(verbose_facts) + len(compressed_facts)
-    return matches / total_facts if total_facts > 0 else 0.0
+    # Compute per-side coverage and average them to avoid double-counting
+    verbose_coverage = verbose_matches / len(verbose_facts) if verbose_facts else 0.0
+    compressed_coverage = compressed_matches / len(compressed_facts) if compressed_facts else 0.0
+    return (verbose_coverage + compressed_coverage) / 2.0
 
 
 # =============================================================================
