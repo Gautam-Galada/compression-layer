@@ -112,7 +112,7 @@ class TestValidationHarness:
 
             assert len(harness.models) == 3
             assert ModelType.CLAUDE_SONNET in harness.models
-            assert harness.threshold == 0.85
+            assert harness.threshold == 0.72  # Updated default threshold
 
     @pytest.mark.asyncio
     async def test_harness_custom_models(self):

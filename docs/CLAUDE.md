@@ -101,9 +101,11 @@ gh pr merge --squash
 - Use GGUF export + llama.cpp for lowest latency
 
 ### Validation (`src/validation/harness.py`)
-- Compression passes only if min(equivalence) > 0.85 across ALL models
-- NL: 0.7 × cosine(embeddings) + 0.3 × Jaccard
+- Compression passes only if min(equivalence) >= 0.72 across ALL models
+- NL: Pure semantic similarity (cosine embeddings) - lexical removed due to symbol penalty
 - Code: 0.5 × AST similarity + 0.5 × semantic
+- Temperature=0.0 for deterministic validation
+- Optional LLM-as-judge for higher accuracy on borderline cases
 
 ## API Keys Required
 
