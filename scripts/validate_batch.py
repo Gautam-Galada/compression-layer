@@ -530,7 +530,15 @@ async def main() -> int:
                             failed += 1
 
                         # Save immediately (incremental) - uses file append
-                        save_single_result(pair, result, args.output, args.save_all)
+                        loop = asyncio.get_running_loop()
+                        await loop.run_in_executor(
+                            None,
+                            save_single_result,
+                            pair,
+                            result,
+                            args.output,
+                            args.save_all,
+                        )
 
                         # Check cost limit
                         if args.max_cost and not stop_requested:
