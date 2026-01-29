@@ -113,6 +113,26 @@ class TrainingConfig(BaseSettings):
     cloud_lr: float = 2e-4
 
 
+def load_tinker_training_config(config_path: Path) -> "TinkerTrainingConfig":
+    """Load Tinker training settings from the YAML config."""
+    import yaml
+
+    from src.training import TinkerTrainingConfig
+
+    defaults = TrainingConfig()
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    cloud = payload.get("cloud", {})
+    training = cloud.get("training", {})
+
+    base_model = cloud.get("model", defaults.cloud_model)
+    epochs = int(training.get("epochs", defaults.cloud_epochs))
+    steps = training.get("steps")
+    if steps is None:
+        steps = epochs * 100
+
+    return TinkerTrainingConfig(base_model=base_model, epochs=epochs, steps=int(steps))
+
+
 # Singleton instance
 _settings: Settings | None = None
 
