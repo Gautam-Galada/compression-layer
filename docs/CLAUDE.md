@@ -119,7 +119,7 @@ TINKER_API_KEY=     # For cloud training
 
 ## Common Tasks
 
-**Change base model**: Update `configs/training.yaml` → `model.name`
+**Change base model**: Update `configs/training.yaml` → `cloud.model`
 
 **Add compression domain**: 
 1. Add prompt in `src/generation/prompts/`
