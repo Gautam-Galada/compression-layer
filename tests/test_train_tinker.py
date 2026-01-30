@@ -1,35 +1,50 @@
-"""Tests for Tinker SDK training helpers."""
-
 from pathlib import Path
 
 import pytest
 
-from src.training import train_tinker
-from src.training.train_tinker import TinkerTrainingConfig
+import src.training.train_tinker as train_tinker
 
 
-class FakeTrainingClient:
-    """Minimal training client stub."""
+class FakeClient:
+    last_api_key = None
 
-
-class FakeTinkerSDKClient:
-    """Fake SDK client used by tests."""
-
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None):
+        FakeClient.last_api_key = api_key
         self.api_key = api_key
+        self._sdk_available = True
 
-    def create_training_client(self, config: TinkerTrainingConfig) -> FakeTrainingClient:
-        return FakeTrainingClient()
+    @property
+    def is_available(self) -> bool:
+        return True
+
+    def upload_dataset(self, data_dir: Path, name: str) -> str:
+        return "dataset-123"
+
+    def start_training(self, config: train_tinker.TinkerTrainingConfig, dataset_id: str) -> str:
+        return "job-123"
+
+    def wait_for_completion(self, job_id: str, poll_interval: int = 30, callback=None):
+        return train_tinker.TinkerJobStatus(
+            job_id=job_id,
+            status="completed",
+            current_loss=0.42,
+        )
+
+    def download_adapter(self, job_id: str, output_path: Path) -> Path:
+        output_path.mkdir(parents=True, exist_ok=True)
+        return output_path
 
 
-def test_train_on_tinker_records_run_metadata(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(train_tinker, "TinkerSDKClient", FakeTinkerSDKClient)
-    config = TinkerTrainingConfig(base_model="qwen-test", epochs=1, steps=2)
+def test_train_on_tinker_uses_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    data_dir = tmp_path / "training"
+    data_dir.mkdir()
+    (data_dir / "train.jsonl").write_text("{}\n", encoding="utf-8")
 
-    result = train_tinker.train_on_tinker(config, api_key="test", output_dir=tmp_path)
+    config = train_tinker.TinkerTrainingConfig(dataset_path=data_dir)
 
-    assert result.run_id is not None
-    assert "FakeTrainingClient" in result.run_id
-    assert (tmp_path / "runs" / f"{result.run_id}.json").exists()
+    monkeypatch.setattr(train_tinker, "TinkerClient", FakeClient)
+
+    result = train_tinker.train_on_tinker(config, api_key="test-key")
+
+    assert result.success is True
+    assert FakeClient.last_api_key == "test-key"

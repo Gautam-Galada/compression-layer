@@ -1,18 +1,30 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol
-
-from tinker.types import Datum, ModelInput, TensorData
 
 
 class TokenizerLike(Protocol):
     def encode(self, text: str, add_special_tokens: bool = True) -> list[int]: ...
 
 
+@dataclass
+class ModelInput:
+    tokens: list[int]
+
+    @classmethod
+    def from_ints(cls, tokens: list[int]) -> ModelInput:
+        return cls(tokens=tokens)
+
+
+@dataclass
+class Datum:
+    model_input: ModelInput
+    loss_fn_inputs: dict[str, list[int]]
+
+
 def split_prompt_completion(messages: list[dict[str, str]]) -> tuple[str, str]:
     if not messages:
-        raise ValueError("messages must not be empty")
-    if any(not message.get("content", "").strip() for message in messages):
         raise ValueError("messages must not be empty")
 
     prompt = "\n".join(message["content"] for message in messages[:-1])
@@ -26,12 +38,7 @@ def render_chat_example(messages: list[dict[str, str]], tokenizer: TokenizerLike
     completion_tokens = tokenizer.encode(completion, add_special_tokens=False)
     tokens = prompt_tokens + completion_tokens
     weights = [0] * len(prompt_tokens) + [1] * len(completion_tokens)
-    if len(tokens) < 2:
-        raise ValueError("tokenized messages must contain at least two tokens")
     return Datum(
-        model_input=ModelInput.from_ints(tokens=tokens[:-1]),
-        loss_fn_inputs={
-            "target_tokens": TensorData(data=tokens[1:], dtype="int64"),
-            "weights": TensorData(data=weights[1:], dtype="float32"),
-        },
+        model_input=ModelInput.from_ints(tokens[:-1]),
+        loss_fn_inputs={"target_tokens": tokens[1:], "weights": weights[1:]},
     )
