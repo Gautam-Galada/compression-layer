@@ -8,7 +8,7 @@ Usage:
     from src.training.train_mlx import train_local, MLXTrainingConfig
 
     config = MLXTrainingConfig(
-        model="mlx-community/Qwen3-4B-Instruct-4bit",
+        model="mlx-community/Qwen3-4B-Instruct-2507-4bit",
         data_dir=Path("data/training"),
         iters=500,
     )
@@ -31,7 +31,7 @@ class MLXTrainingConfig:
     """Configuration for local MLX LoRA training."""
 
     # Model
-    model: str = "mlx-community/Qwen3-4B-Instruct-4bit"
+    model: str = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
 
     # Data paths
     data_dir: Path = field(default_factory=lambda: Path("data/training"))
@@ -49,7 +49,7 @@ class MLXTrainingConfig:
     grad_accumulation_steps: int = 4  # Effective batch size = batch_size * grad_accumulation
 
     # Memory optimization
-    grad_checkpoint: bool = False  # Trade compute for memory
+    grad_checkpoint: bool = True  # Gradient checkpointing (memory saver; not model checkpointing)
     max_seq_length: int = 2048  # Max sequence length
 
     # Logging
