@@ -129,13 +129,17 @@ def load_tinker_training_config(config_path: Path) -> TinkerTrainingConfig:
     cloud = payload.get("cloud", {})
     training = cloud.get("training", {})
 
-    base_model = cloud.get("model", defaults.cloud_model)
+    model = cloud.get("model", defaults.cloud_model)
     epochs = int(training.get("epochs", defaults.cloud_epochs))
-    steps = training.get("steps")
-    if steps is None:
-        steps = epochs * 100
+    batch_size = int(training.get("batch_size", defaults.cloud_batch_size))
+    learning_rate = float(training.get("learning_rate", defaults.cloud_lr))
 
-    return TinkerTrainingConfig(base_model=base_model, epochs=epochs, steps=int(steps))
+    return TinkerTrainingConfig(
+        model=model,
+        epochs=epochs,
+        batch_size=batch_size,
+        learning_rate=learning_rate,
+    )
 
 
 # Singleton instance
