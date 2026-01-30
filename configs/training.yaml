@@ -13,10 +13,10 @@ data:
 # === LOCAL (MLX on M4 Pro) ===
 # For quick iteration and testing
 local:
-  model: "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+  model: "mlx-community/Qwen3-4B-Instruct-2507-8bit"
   # Alternatives:
-  #   - mlx-community/Qwen3-8B-4bit (better quality, slower)
-  #   - mlx-community/Qwen3-4B-8bit (higher precision, more memory)
+  #   - mlx-community/Qwen3-4B-Instruct-2507-4bit (faster, smaller ~5.3GB)
+  #   - mlx-community/Qwen3-8B-4bit (more params but NOT instruct-tuned)
   
   lora:
     rank: 8           # Lower rank for faster local training

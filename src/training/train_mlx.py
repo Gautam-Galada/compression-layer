@@ -8,7 +8,7 @@ Usage:
     from src.training.train_mlx import train_local, MLXTrainingConfig
 
     config = MLXTrainingConfig(
-        model="mlx-community/Qwen3-4B-Instruct-2507-4bit",
+        model="mlx-community/Qwen3-4B-Instruct-2507-8bit",
         data_dir=Path("data/training"),
         iters=500,
     )
@@ -31,7 +31,7 @@ class MLXTrainingConfig:
     """Configuration for local MLX LoRA training."""
 
     # Model
-    model: str = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+    model: str = "mlx-community/Qwen3-4B-Instruct-2507-8bit"
 
     # Data paths
     data_dir: Path = field(default_factory=lambda: Path("data/training"))
@@ -387,7 +387,7 @@ def load_config_from_yaml(config_path: Path) -> MLXTrainingConfig:
     training_config = local_config.get("training", {})
 
     return MLXTrainingConfig(
-        model=local_config.get("model", "mlx-community/Qwen3-4B-Instruct-4bit"),
+        model=local_config.get("model", "mlx-community/Qwen3-4B-Instruct-2507-8bit"),
         lora_rank=lora_config.get("rank", 8),
         lora_alpha=lora_config.get("alpha", 16),
         iters=training_config.get("iters", 500),

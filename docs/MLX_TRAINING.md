@@ -28,7 +28,7 @@ hf auth login
 Recommended local model (M4 Pro 24GB):
 
 ```bash
-hf download mlx-community/Qwen3-4B-Instruct-2507-4bit
+hf download mlx-community/Qwen3-4B-Instruct-2507-8bit
 ```
 
 ## Run training
@@ -42,7 +42,7 @@ python scripts/train_local.py --train
 Override the model explicitly (optional):
 
 ```bash
-python scripts/train_local.py --train --model mlx-community/Qwen3-4B-Instruct-2507-4bit
+python scripts/train_local.py --train --model mlx-community/Qwen3-4B-Instruct-2507-8bit
 ```
 
 ## Where outputs are stored
