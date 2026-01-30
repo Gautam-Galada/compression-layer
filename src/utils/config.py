@@ -1,10 +1,15 @@
 """Pydantic settings for the compression layer project."""
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+if TYPE_CHECKING:
+    from src.training import TinkerTrainingConfig
 
 
 class Settings(BaseSettings):
@@ -113,7 +118,7 @@ class TrainingConfig(BaseSettings):
     cloud_lr: float = 2e-4
 
 
-def load_tinker_training_config(config_path: Path) -> "TinkerTrainingConfig":
+def load_tinker_training_config(config_path: Path) -> TinkerTrainingConfig:
     """Load Tinker training settings from the YAML config."""
     import yaml
 
