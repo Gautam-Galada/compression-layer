@@ -1,5 +1,6 @@
 """Generation module for compression pair synthesis."""
 
+from .adapter_generator import AdapterGenerator
 from .corpus_loader import (
     CodeExtractionConfig,
     CodeSample,
@@ -22,6 +23,7 @@ from .seed_generator import (
 )
 
 __all__ = [
+    "AdapterGenerator",
     # Corpus loader
     "CodeExtractionConfig",
     "CodeSample",
