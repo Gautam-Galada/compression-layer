@@ -17,6 +17,7 @@ Usage:
 
 import json
 import logging
+import re
 import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -387,15 +388,15 @@ def evaluate_adapter(
             return None
 
         # Parse perplexity from output
-        # MLX outputs something like "Test loss: X.XXX, Test ppl: Y.YYY"
+        # MLX outputs something like "Test loss 2.229, Test ppl 9.290."
         for line in result.stdout.split("\n"):
             if "ppl" in line.lower():
-                try:
-                    # Extract number after "ppl:"
-                    ppl_str = line.split("ppl:")[-1].strip().split()[0]
-                    return float(ppl_str)
-                except (IndexError, ValueError):
-                    pass
+                match = re.search(r"ppl\s*:?\s*([0-9]+(?:\.[0-9]+)?)", line, re.IGNORECASE)
+                if match:
+                    try:
+                        return float(match.group(1))
+                    except ValueError:
+                        pass
 
         return None
 
