@@ -212,7 +212,14 @@ def main() -> int:
     # Override with CLI arguments
     config.model = args.model
     config.data_dir = args.data or settings.data_dir / "training"
-    config.adapter_path = args.adapter_path or settings.adapters_dir / "mlx"
+    if args.adapter_path:
+        config.adapter_path = args.adapter_path
+    else:
+        latest_run_adapter = settings.models_dir / "runs" / "mlx" / "latest" / "adapter"
+        if latest_run_adapter.exists():
+            config.adapter_path = latest_run_adapter
+        else:
+            config.adapter_path = settings.adapters_dir / "mlx"
     config.iters = args.iters
     config.batch_size = args.batch_size
     config.learning_rate = args.learning_rate

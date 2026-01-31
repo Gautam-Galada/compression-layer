@@ -45,6 +45,21 @@ Override the model explicitly (optional):
 python scripts/train_local.py --train --model mlx-community/Qwen3-4B-Instruct-2507-8bit
 ```
 
+## Evaluate the latest adapter
+
+If you trained with the default run storage, evaluation will use
+`models/runs/mlx/latest/adapter` automatically.
+
+```bash
+python scripts/train_local.py --evaluate
+```
+
+To evaluate a specific run, pass the adapter path explicitly:
+
+```bash
+python scripts/train_local.py --evaluate --adapter-path models/runs/mlx/<timestamp>/adapter
+```
+
 ## Where outputs are stored
 
 Each run writes to a timestamped directory:
