@@ -6,10 +6,10 @@ structural patterns and heuristics.
 
 import re
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class Domain(str, Enum):
+class Domain(StrEnum):
     """Content domain types."""
 
     NL = "nl"
