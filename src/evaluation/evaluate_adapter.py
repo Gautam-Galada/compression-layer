@@ -25,6 +25,16 @@ from src.validation.models import ModelType
 console = Console()
 
 
+def _prepare_output(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("", encoding="utf-8")
+
+
+def _append_line(path: Path, line: str) -> None:
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(line)
+
+
 @dataclass(frozen=True)
 class EvaluationExample:
     """Input example to evaluate with the adapter."""
@@ -140,8 +150,7 @@ async def run_evaluation(
     min_equivalence: float = 0.0,
 ) -> list[EvaluationResult]:
     """Evaluate adapter by generating compressions and scoring equivalence."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text("", encoding="utf-8")
+    await asyncio.to_thread(_prepare_output, output_path)
 
     sem = asyncio.Semaphore(concurrency)
     results: list[EvaluationResult] = []
@@ -184,7 +193,11 @@ async def run_evaluation(
             async with lock:
                 results.append(result)
                 completed += 1
-                output_path.open("a", encoding="utf-8").write(json.dumps(result.__dict__) + "\n")
+                await asyncio.to_thread(
+                    _append_line,
+                    output_path,
+                    json.dumps(result.__dict__) + "\n",
+                )
 
                 # Print progress for each completed example
                 status = "[green]PASS[/green]" if result.passed else "[red]FAIL[/red]"
