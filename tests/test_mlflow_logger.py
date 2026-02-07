@@ -114,7 +114,7 @@ def mlflow_recorder(monkeypatch) -> MlflowRecorder:
 
     # Patch symbols inside the module under test
     monkeypatch.setattr(m, "mlflow", rec, raising=True)
-    monkeypatch.setattr(m.dagshub, "init", lambda **kwargs: None, raising=True)
+    monkeypatch.setattr(m.dagshub, "init", raising=True)
 
     # Ensure non-interactive matplotlib backend
     monkeypatch.setenv("MPLBACKEND", "Agg")
@@ -123,7 +123,7 @@ def mlflow_recorder(monkeypatch) -> MlflowRecorder:
 
 
 def test_logs_params_metrics_and_artifacts(
-    tmp_path: Path, mlflow_recorder: MlflowRecorder, monkeypatch
+    tmp_path: Path, mlflow_recorder: MlflowRecorder
 ):
     import scripts.mlflow_logger as m
 
