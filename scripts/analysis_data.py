@@ -584,8 +584,6 @@ def generate_report(results: dict) -> str:
 def main():
     # EDIT THESE PATHS
     INPUT_FILE = "data/training/train.jsonl"  # <-- PUT YOUR FILE PATH HERE
-    OUTPUT_REPORT = "logical_analysis_report.txt"
-    OUTPUT_JSON = "logical_analysis_data.json"
     OUTPUT_DIR = Path("reports/logical_analysis")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
