@@ -43,7 +43,7 @@ def test_tokenize_compression_splits_symbols_and_text():
 def test_extract_symbol_sequence_basic():
     # X for content, symbols preserved; adjacent content should collapse to single X
     seq = m.extract_symbol_sequence("A → B | C")
-    # "A " -> X, "→", " B " -> X, "|", " C" -> X
+    # Leading "A " content is omitted, then "→", " B " -> X, "|", " C" -> X
     assert seq == "→X|X"
 
 
