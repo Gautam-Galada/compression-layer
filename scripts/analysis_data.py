@@ -222,25 +222,36 @@ def extract_logical_pattern(compressed: str) -> str:
 
 def check_negation_preservation(verbose: str, compressed: str) -> dict:
     """Check if negations are preserved."""
-    negation_words = ["not", "no", "never", "neither", "nor", "n't", "without", "none"]
+    # Words safe for word-boundary matching
+    negation_words = ["not", "no", "never", "neither", "nor", "without", "none"]
 
     verbose_lower = verbose.lower()
     compressed_lower = compressed.lower()
 
-    verbose_has_negation = any(
+    # Whole-word negations
+    verbose_has_word_neg = any(
         re.search(r"\b" + word + r"\b", verbose_lower) for word in negation_words
     )
-    compressed_has_negation = any(
+    compressed_has_word_neg = any(
         re.search(r"\b" + word + r"\b", compressed_lower) for word in negation_words
     )
 
-    # Check for negation symbols
+    # Contracted negation (handles don't / can’t / isn’t)
+    verbose_has_contraction = bool(re.search(r"n[’']t\b", verbose_lower))
+    compressed_has_contraction = bool(re.search(r"n[’']t\b", compressed_lower))
+
+    # Negation symbols in compressed form
     has_neg_symbol = "¬" in compressed or "~" in compressed or "!" in compressed
+
+    verbose_has_negation = verbose_has_word_neg or verbose_has_contraction
+    compressed_has_negation = (
+        compressed_has_word_neg or compressed_has_contraction or has_neg_symbol
+    )
 
     return {
         "verbose_has_negation": verbose_has_negation,
-        "compressed_has_negation": compressed_has_negation or has_neg_symbol,
-        "negation_lost": verbose_has_negation and not (compressed_has_negation or has_neg_symbol),
+        "compressed_has_negation": compressed_has_negation,
+        "negation_lost": verbose_has_negation and not compressed_has_negation,
     }
 
 
