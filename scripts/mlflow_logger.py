@@ -5,20 +5,19 @@ Post-training MLflow logger for existing runs.
 Behavior:
 - If --run-dir is provided → use it
 - If --run-dir is omitted → auto-detect latest run in models/runs/mlx/
+- DagsHub/MLflow destination can be configured via CLI or env vars.
 
-Usage:
-    python scripts/mlflow_logger.py \
-        --experiment-name v1_small_sem_norm_patch
-
-    python scripts/mlflow_logger.py \
-        --run-dir models/runs/mlx/2026-02-05_21-59-37 \
-        --experiment-name v1_small_sem_norm_patch
+Env vars:
+- DAGSHUB_OWNER
+- DAGSHUB_REPO
+- MLFLOW_TRACKING_URI
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
@@ -32,6 +31,7 @@ import mlflow
 # ===============================
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
+
     p.add_argument(
         "--run-dir",
         type=Path,
@@ -45,6 +45,35 @@ def parse_args() -> argparse.Namespace:
         help="Root directory containing run folders (default: models/runs/mlx)",
     )
     p.add_argument("--experiment-name", required=True, type=str)
+
+    # Remote / tracking config
+    p.add_argument(
+        "--dagshub-owner",
+        type=str,
+        default=os.getenv("DAGSHUB_OWNER", "Gautam-Galada"),
+        help="DagsHub repo owner (env: DAGSHUB_OWNER). Default: Gautam-Galada",
+    )
+    p.add_argument(
+        "--dagshub-repo",
+        type=str,
+        default=os.getenv("DAGSHUB_REPO", "compression-layer"),
+        help="DagsHub repo name (env: DAGSHUB_REPO). Default: compression-layer",
+    )
+    p.add_argument(
+        "--mlflow-tracking-uri",
+        type=str,
+        default=os.getenv("MLFLOW_TRACKING_URI", ""),
+        help=(
+            "MLflow tracking URI (env: MLFLOW_TRACKING_URI). "
+            "If omitted, derived from DagsHub owner/repo."
+        ),
+    )
+    p.add_argument(
+        "--no-dagshub-init",
+        action="store_true",
+        help="Skip dagshub.init() (useful if tracking is configured elsewhere).",
+    )
+
     return p.parse_args()
 
 
@@ -66,20 +95,37 @@ def find_latest_run(runs_root: Path) -> Path:
 # ===============================
 # CORE LOGIC
 # ===============================
-def log_run_dir_to_mlflow(run_dir: Path, experiment_name: str) -> None:
+def _derive_dagshub_tracking_uri(owner: str, repo: str) -> str:
+    # Matches your existing hardcoded pattern
+    return f"https://dagshub.com/{owner}/{repo}.mlflow"
+
+
+def log_run_dir_to_mlflow(
+    run_dir: Path,
+    experiment_name: str,
+    dagshub_owner: str,
+    dagshub_repo: str,
+    mlflow_tracking_uri: str,
+    no_dagshub_init: bool,
+) -> None:
     if not run_dir.exists():
         raise FileNotFoundError(f"Run dir not found: {run_dir}")
 
     # ===============================
     # INIT DAGSHUB + MLFLOW
     # ===============================
-    dagshub.init(
-        repo_owner="Gautam-Galada",
-        repo_name="compression-layer",
-        mlflow=True,
+    tracking_uri = mlflow_tracking_uri.strip() or _derive_dagshub_tracking_uri(
+        dagshub_owner, dagshub_repo
     )
 
-    mlflow.set_tracking_uri("https://dagshub.com/Gautam-Galada/compression-layer.mlflow")
+    if not no_dagshub_init:
+        dagshub.init(
+            repo_owner=dagshub_owner,
+            repo_name=dagshub_repo,
+            mlflow=True,
+        )
+
+    mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
 
     # ===============================
@@ -191,9 +237,17 @@ def main() -> None:
         run_dir = find_latest_run(args.runs_root)
         print(f"📌 Auto-selected latest run: {run_dir}")
 
-    log_run_dir_to_mlflow(run_dir, args.experiment_name)
+    log_run_dir_to_mlflow(
+        run_dir=run_dir,
+        experiment_name=args.experiment_name,
+        dagshub_owner=args.dagshub_owner,
+        dagshub_repo=args.dagshub_repo,
+        mlflow_tracking_uri=args.mlflow_tracking_uri,
+        no_dagshub_init=args.no_dagshub_init,
+    )
     print("✅ Existing training run successfully logged to MLflow")
 
 
 if __name__ == "__main__":
     main()
+    

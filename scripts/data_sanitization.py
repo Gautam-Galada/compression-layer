@@ -77,22 +77,6 @@ CAUSATION_KEYWORDS_NL = [
     "thus",
 ]
 
-NEGATION_KEYWORDS = [
-    "not",
-    "no",
-    "never",
-    "neither",
-    "nor",
-    "n't",
-    "without",
-    "none",
-    "nothing",
-    "nobody",
-    "nowhere",
-    "no longer",
-    "no more",
-]
-
 # Code detection indicators
 CODE_INDICATORS = [
     "def ",
@@ -372,27 +356,121 @@ def rule_b_orphaned_symbols(compressed: str, is_code: bool) -> tuple[bool, str]:
     return True, ""
 
 
-def rule_c_negation_preservation(verbose: str, compressed: str) -> tuple[bool, str]:
-    """Rule C: Remove samples that lost negation (NL only)"""
-    verbose_lower = verbose.lower()
-    compressed_lower = compressed.lower()
+"""
+RULE C FIX: Drop-in replacement for rule_c_negation_preservation
 
-    has_input_negation = any(
-        re.search(r"\b" + re.escape(kw) + r"\b", verbose_lower) for kw in NEGATION_KEYWORDS
+Replace the existing rule_c_negation_preservation function in your
+sanitization script with these functions.
+
+FIXES:
+1. Unicode apostrophes (can't vs can't) - CRITICAL
+2. Flexible whitespace in multi-word phrases  
+3. Reduced false positives from symbols (~, !)
+4. Proper contraction handling as suffix, not standalone word
+"""
+
+import re
+from typing import Tuple
+
+
+def _normalize_apostrophes(text: str) -> str:
+    """Normalize Unicode apostrophes to ASCII."""
+    unicode_apostrophes = ['\u2019', '\u2018', '\u02BC', '\u0060']
+    normalized = text
+    for unicode_apos in unicode_apostrophes:
+        normalized = normalized.replace(unicode_apos, "'")
+    return normalized
+
+
+def _normalize_whitespace(text: str) -> str:
+    """Normalize whitespace for consistent matching."""
+    normalized = text.replace('\n', ' ').replace('\t', ' ').replace('\r', ' ')
+    normalized = re.sub(r'\s+', ' ', normalized)
+    return normalized.strip()
+
+
+def _has_contractions(text: str) -> bool:
+    """Detect negation contractions (don't, can't, won't, etc.)."""
+    normalized = _normalize_apostrophes(text.lower())
+    return bool(re.search(r"\w+n't\b", normalized))
+
+
+def _has_standalone_negation(text: str) -> bool:
+    """Detect standalone negation words."""
+    normalized = _normalize_whitespace(text.lower())
+    words = ["not", "no", "never", "neither", "nor", 
+             "without", "none", "nothing", "nobody", "nowhere"]
+    
+    for word in words:
+        if re.search(r'\b' + re.escape(word) + r'\b', normalized):
+            return True
+    return False
+
+
+def _has_multiword_negation(text: str) -> bool:
+    """Detect multi-word negation phrases with flexible whitespace."""
+    normalized = _normalize_whitespace(text.lower())
+    patterns = [r'\bno\s+longer\b', r'\bno\s+more\b', r'\bnot\s+anymore\b']
+    
+    return any(re.search(pattern, normalized) for pattern in patterns)
+
+
+def _has_negation_symbols(text: str, strict: bool = True) -> bool:
+    """
+    Detect negation symbols with reduced false positives.
+    
+    Args:
+        strict: If True, only check ¬ (unambiguous)
+               If False, also check ~ and ! (more permissive)
+    """
+    if '¬' in text:
+        return True
+    
+    if not strict:
+        # Check for ! but avoid != and !!
+        if re.search(r'![^=!]', text):
+            return True
+        # Check for ~ but avoid ~/ and ~digits
+        if re.search(r'~(?![/\d])', text):
+            return True
+    
+    return False
+
+
+def rule_c_negation_preservation(verbose: str, compressed: str) -> Tuple[bool, str]:
+    """
+    Rule C: Remove samples that lost negation (NL only).
+    
+    FIXED VERSION addressing:
+    - Unicode apostrophes in contractions (can't vs can't)
+    - Flexible whitespace in multi-word phrases
+    - Reduced false positives from symbols
+    - Proper contraction detection
+    
+    Returns:
+        (passed, reason) - passed=False if negation was lost
+    """
+    # Check if input has any form of negation
+    has_input_negation = (
+        _has_contractions(verbose) or
+        _has_standalone_negation(verbose) or
+        _has_multiword_negation(verbose)
     )
-
+    
     if not has_input_negation:
-        return True, ""
-
-    has_output_negation = any(
-        re.search(r"\b" + re.escape(kw) + r"\b", compressed_lower) for kw in NEGATION_KEYWORDS
+        return True, ""  # No negation to preserve
+    
+    # Input has negation - check if output preserved it
+    has_output_negation = (
+        _has_contractions(compressed) or
+        _has_standalone_negation(compressed) or
+        _has_multiword_negation(compressed) or
+        _has_negation_symbols(compressed, strict=False)  # Allow symbols in compressed
     )
-
-    has_neg_symbol = "¬" in compressed or "~" in compressed or "!" in compressed
-
-    if not (has_output_negation or has_neg_symbol):
+    
+    if not has_output_negation:
         return False, "Negation lost"
-
+    
     return True, ""
 
 
@@ -434,8 +512,34 @@ def sanitize_and_extract(input_path: Path, sanitized_path: Path, unsanitized_pat
 
     print(f"Loading data from {input_path}...")
 
+    data = []
+
     with open(input_path, encoding="utf-8") as f:
-        data = [json.loads(line) for line in f if line.strip()]
+        for idx, line in enumerate(f):
+            if not line.strip():
+                continue
+
+            try:
+                sample = json.loads(line)
+                data.append(sample)
+            except json.JSONDecodeError as e:
+                stats["parse_errors"] += 1
+                stats["failed_all"] += 1
+
+                error_msg = f"Sample {idx}: JSON decode error ({e.msg})"
+                unsanitized_data.append({"raw_line": line.strip()})
+
+                stats["parse_error_samples"].append(
+                    {
+                        "id": idx,
+                        "error": error_msg,
+                        "raw_line": line.strip(),
+                    }
+                )
+
+                print(f"⚠ {error_msg}")
+                continue
+
 
     print(f"✓ Loaded {len(data)} samples\n")
 
@@ -574,34 +678,29 @@ def sanitize_and_extract(input_path: Path, sanitized_path: Path, unsanitized_pat
 
 def print_statistics(stats: dict):
     """Print statistics."""
+    total = stats["total_input"]
+    code = stats["code_samples"]
+    nl = stats["nl_samples"]
+
+    def pct(n: int, d: int) -> float:
+        return (n / d * 100.0) if d > 0 else 0.0
+
     print("=" * 80)
     print("PROCESSING STATISTICS")
     print("=" * 80)
     print()
 
-    print(f"Total input:                {stats['total_input']:5d}")
-    print(
-        f"  Code samples:             {stats['code_samples']:5d} ({stats['code_samples'] / stats['total_input'] * 100:5.1f}%)"
-    )
-    print(
-        f"  NL samples:               {stats['nl_samples']:5d} ({stats['nl_samples'] / stats['total_input'] * 100:5.1f}%)"
-    )
+    print(f"Total input:                {total:5d}")
+    print(f"  Code samples:             {code:5d} ({pct(code, total):5.1f}%)")
+    print(f"  NL samples:               {nl:5d} ({pct(nl, total):5.1f}%)")
     print()
 
-    print(
-        f"✓ SANITIZED (passed):       {stats['passed_all']:5d} ({stats['passed_all'] / stats['total_input'] * 100:5.1f}%)"
-    )
-    print(
-        f"  Code:                     {stats['code_passed']:5d} ({stats['code_passed'] / stats['code_samples'] * 100 if stats['code_samples'] > 0 else 0:5.1f}%)"
-    )
-    print(
-        f"  NL:                       {stats['nl_passed']:5d} ({stats['nl_passed'] / stats['nl_samples'] * 100 if stats['nl_samples'] > 0 else 0:5.1f}%)"
-    )
+    print(f"✓ SANITIZED (passed):       {stats['passed_all']:5d} ({pct(stats['passed_all'], total):5.1f}%)")
+    print(f"  Code:                     {stats['code_passed']:5d} ({pct(stats['code_passed'], code):5.1f}%)")
+    print(f"  NL:                       {stats['nl_passed']:5d} ({pct(stats['nl_passed'], nl):5.1f}%)")
     print()
 
-    print(
-        f"✗ UNSANITIZED (failed):     {stats['failed_all']:5d} ({stats['failed_all'] / stats['total_input'] * 100:5.1f}%)"
-    )
+    print(f"✗ UNSANITIZED (failed):     {stats['failed_all']:5d} ({pct(stats['failed_all'], total):5.1f}%)")
     print()
 
     print("Failed by rule:")
@@ -612,7 +711,6 @@ def print_statistics(stats: dict):
     print(f"  Parse errors:             {stats['parse_errors']:5d}")
     print()
 
-    # Show parse errors if any
     if stats["parse_errors"] > 0:
         print("=" * 80)
         print("PARSE ERRORS (First 5)")
@@ -623,7 +721,6 @@ def print_statistics(stats: dict):
             print(f"  Error: {item['error']}")
             print()
 
-    # Show sample failures
     print("=" * 80)
     print("UNSANITIZED SAMPLES (First 5)")
     print("=" * 80)
@@ -634,6 +731,7 @@ def print_statistics(stats: dict):
         print(f"  Reason: {item['reason']}")
         print(f"  Failed rules: {', '.join(item.get('failed_rules', []))}")
         print()
+
 
 
 # ============================================================================
