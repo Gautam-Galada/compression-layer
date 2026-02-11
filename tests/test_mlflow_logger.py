@@ -23,7 +23,7 @@ import pytest
 
 class MlflowRecorder:
     """Mock MLflow client that records all operations."""
-    
+
     def __init__(self):
         self.tracking_uri = None
         self.experiment = None
@@ -138,6 +138,7 @@ def mlflow_recorder(monkeypatch) -> MlflowRecorder:
 # CORE FUNCTIONALITY TESTS
 # ============================================================================
 
+
 def test_logs_params_metrics_and_artifacts(tmp_path: Path, mlflow_recorder: MlflowRecorder):
     """Test that all params, metrics, and artifacts are logged correctly."""
     import scripts.mlflow_logger as m
@@ -232,6 +233,7 @@ def test_nonmatching_log_produces_no_loss_plot(tmp_path: Path, mlflow_recorder: 
 # RUN DISCOVERY TESTS
 # ============================================================================
 
+
 def test_find_latest_run_ignores_latest_and_uses_mtime(tmp_path: Path):
     """Test that find_latest_run() ignores 'latest' symlink and uses mtime."""
     import scripts.mlflow_logger as m
@@ -248,6 +250,7 @@ def test_find_latest_run_ignores_latest_and_uses_mtime(tmp_path: Path):
 
     # Set mtimes explicitly
     import os
+
     older_ts = 1_000_000_000
     newer_ts = 1_000_000_100
     os.utime(older, (older_ts, older_ts))
@@ -285,15 +288,17 @@ def test_find_latest_run_raises_if_root_missing(tmp_path: Path):
 # ERROR HANDLING TESTS
 # ============================================================================
 
+
 def test_missing_run_json_raises_error(tmp_path: Path, mlflow_recorder: MlflowRecorder):
     """Test that missing run.json raises FileNotFoundError."""
     import scripts.mlflow_logger as m
 
     runs_root = tmp_path / "runs" / "mlx"
     run_dir = _write_run_dir(
-        runs_root, "2026-02-05_21-59-37", 
+        runs_root,
+        "2026-02-05_21-59-37",
         with_run_json=False,  # Don't create run.json
-        with_adapter=False
+        with_adapter=False,
     )
 
     with pytest.raises(FileNotFoundError, match="Missing run.json"):
@@ -313,9 +318,10 @@ def test_missing_train_log_raises_error(tmp_path: Path, mlflow_recorder: MlflowR
 
     runs_root = tmp_path / "runs" / "mlx"
     run_dir = _write_run_dir(
-        runs_root, "2026-02-05_21-59-37",
+        runs_root,
+        "2026-02-05_21-59-37",
         with_train_log=False,  # Don't create train.log
-        with_adapter=False
+        with_adapter=False,
     )
 
     with pytest.raises(FileNotFoundError, match="Missing train.log"):
@@ -349,6 +355,7 @@ def test_nonexistent_run_dir_raises_error(tmp_path: Path, mlflow_recorder: Mlflo
 # ============================================================================
 # DAGSHUB URI DERIVATION TESTS
 # ============================================================================
+
 
 def test_derive_dagshub_tracking_uri():
     """Test DagsHub tracking URI derivation."""
@@ -402,6 +409,7 @@ def test_derived_uri_used_when_not_provided(tmp_path: Path, mlflow_recorder: Mlf
 # CLI INTEGRATION TESTS
 # ============================================================================
 
+
 def test_main_with_explicit_run_dir(tmp_path: Path, mlflow_recorder: MlflowRecorder, monkeypatch):
     """Test main() with explicit --run-dir argument."""
     import scripts.mlflow_logger as m
@@ -414,8 +422,10 @@ def test_main_with_explicit_run_dir(tmp_path: Path, mlflow_recorder: MlflowRecor
         "sys.argv",
         [
             "mlflow_logger.py",
-            "--run-dir", str(run_dir),
-            "--experiment-name", "test-exp",
+            "--run-dir",
+            str(run_dir),
+            "--experiment-name",
+            "test-exp",
         ],
     )
 
@@ -430,13 +440,14 @@ def test_main_auto_detects_latest_run(tmp_path: Path, mlflow_recorder: MlflowRec
     import scripts.mlflow_logger as m
 
     runs_root = tmp_path / "runs" / "mlx"
-    
+
     # Create two runs
     _write_run_dir(runs_root, "2026-02-04_older", with_adapter=False)
     newer = _write_run_dir(runs_root, "2026-02-06_newer", with_adapter=False)
 
     # Force mtime
     import os
+
     os.utime(runs_root / "2026-02-04_older", (1_000_000_000, 1_000_000_000))
     os.utime(newer, (1_000_000_100, 1_000_000_100))
 
@@ -445,8 +456,10 @@ def test_main_auto_detects_latest_run(tmp_path: Path, mlflow_recorder: MlflowRec
         "sys.argv",
         [
             "mlflow_logger.py",
-            "--runs-root", str(runs_root),
-            "--experiment-name", "test-exp",
+            "--runs-root",
+            str(runs_root),
+            "--experiment-name",
+            "test-exp",
         ],
     )
 
