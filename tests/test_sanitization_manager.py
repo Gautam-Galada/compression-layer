@@ -267,6 +267,32 @@ class TestSanitizeDataset:
         assert sanitized_file.exists()
         assert unsanitized_file.exists()
 
+    def test_malformed_json_line_does_not_crash(self, temp_dir):
+        """Test that malformed JSON lines are tracked as parse errors, not NameError."""
+
+        input_file = temp_dir / "train.jsonl"
+        sanitized_file = temp_dir / "sanitized.jsonl"
+        unsanitized_file = temp_dir / "unsanitized.jsonl"
+
+        good_sample = {
+            "messages": [
+                {"role": "user", "content": "Compress: one two three four"},
+                {"role": "assistant", "content": "1 2"},
+            ]
+        }
+
+        with open(input_file, "w", encoding="utf-8") as f:
+            f.write(json.dumps(good_sample, ensure_ascii=False) + "\n")
+            f.write("{this is not valid json}\n")  # malformed line
+            f.write(json.dumps(good_sample, ensure_ascii=False) + "\n")
+
+        # Should NOT raise NameError
+        stats = sanitize_and_extract(input_file, sanitized_file, unsanitized_file)
+
+        assert stats["parse_errors"] == 1
+        assert len(stats["parse_error_samples"]) == 1
+        assert stats["total_input"] == 2  # only 2 valid samples loaded
+
     def test_unicode_symbols_preserved(self, temp_dir):
         """Test that → ∵ @ symbols are NOT escaped in sanitized output."""
 

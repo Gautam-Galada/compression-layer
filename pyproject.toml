@@ -22,11 +22,13 @@ dependencies = [
     "datasets>=3.0.0",
     "tinker",
     "matplotlib>=3.8.0",
-    "dagshub",
-    "mlflow",
 ]
 
 [project.optional-dependencies]
+mlflow = [
+    "dagshub",
+    "mlflow",
+]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",

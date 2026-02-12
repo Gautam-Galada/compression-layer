@@ -356,26 +356,9 @@ def rule_b_orphaned_symbols(compressed: str, is_code: bool) -> tuple[bool, str]:
     return True, ""
 
 
-"""
-RULE C FIX: Drop-in replacement for rule_c_negation_preservation
-
-Replace the existing rule_c_negation_preservation function in your
-sanitization script with these functions.
-
-FIXES:
-1. Unicode apostrophes (can't vs can't) - CRITICAL
-2. Flexible whitespace in multi-word phrases  
-3. Reduced false positives from symbols (~, !)
-4. Proper contraction handling as suffix, not standalone word
-"""
-
-import re
-from typing import Tuple
-
-
 def _normalize_apostrophes(text: str) -> str:
     """Normalize Unicode apostrophes to ASCII."""
-    unicode_apostrophes = ['\u2019', '\u2018', '\u02BC', '\u0060']
+    unicode_apostrophes = ["\u2019", "\u2018", "\u02bc", "\u0060"]
     normalized = text
     for unicode_apos in unicode_apostrophes:
         normalized = normalized.replace(unicode_apos, "'")
@@ -384,8 +367,8 @@ def _normalize_apostrophes(text: str) -> str:
 
 def _normalize_whitespace(text: str) -> str:
     """Normalize whitespace for consistent matching."""
-    normalized = text.replace('\n', ' ').replace('\t', ' ').replace('\r', ' ')
-    normalized = re.sub(r'\s+', ' ', normalized)
+    normalized = text.replace("\n", " ").replace("\t", " ").replace("\r", " ")
+    normalized = re.sub(r"\s+", " ", normalized)
     return normalized.strip()
 
 
@@ -398,11 +381,21 @@ def _has_contractions(text: str) -> bool:
 def _has_standalone_negation(text: str) -> bool:
     """Detect standalone negation words."""
     normalized = _normalize_whitespace(text.lower())
-    words = ["not", "no", "never", "neither", "nor", 
-             "without", "none", "nothing", "nobody", "nowhere"]
-    
+    words = [
+        "not",
+        "no",
+        "never",
+        "neither",
+        "nor",
+        "without",
+        "none",
+        "nothing",
+        "nobody",
+        "nowhere",
+    ]
+
     for word in words:
-        if re.search(r'\b' + re.escape(word) + r'\b', normalized):
+        if re.search(r"\b" + re.escape(word) + r"\b", normalized):
             return True
     return False
 
@@ -410,67 +403,67 @@ def _has_standalone_negation(text: str) -> bool:
 def _has_multiword_negation(text: str) -> bool:
     """Detect multi-word negation phrases with flexible whitespace."""
     normalized = _normalize_whitespace(text.lower())
-    patterns = [r'\bno\s+longer\b', r'\bno\s+more\b', r'\bnot\s+anymore\b']
-    
+    patterns = [r"\bno\s+longer\b", r"\bno\s+more\b", r"\bnot\s+anymore\b"]
+
     return any(re.search(pattern, normalized) for pattern in patterns)
 
 
 def _has_negation_symbols(text: str, strict: bool = True) -> bool:
     """
     Detect negation symbols with reduced false positives.
-    
+
     Args:
         strict: If True, only check ¬ (unambiguous)
                If False, also check ~ and ! (more permissive)
     """
-    if '¬' in text:
+    if "¬" in text:
         return True
-    
+
     if not strict:
         # Check for ! but avoid != and !!
-        if re.search(r'![^=!]', text):
+        if re.search(r"![^=!]", text):
             return True
         # Check for ~ but avoid ~/ and ~digits
-        if re.search(r'~(?![/\d])', text):
+        if re.search(r"~(?![/\d])", text):
             return True
-    
+
     return False
 
 
-def rule_c_negation_preservation(verbose: str, compressed: str) -> Tuple[bool, str]:
+def rule_c_negation_preservation(verbose: str, compressed: str) -> tuple[bool, str]:
     """
     Rule C: Remove samples that lost negation (NL only).
-    
+
     FIXED VERSION addressing:
     - Unicode apostrophes in contractions (can't vs can't)
     - Flexible whitespace in multi-word phrases
     - Reduced false positives from symbols
     - Proper contraction detection
-    
+
     Returns:
         (passed, reason) - passed=False if negation was lost
     """
     # Check if input has any form of negation
     has_input_negation = (
-        _has_contractions(verbose) or
-        _has_standalone_negation(verbose) or
-        _has_multiword_negation(verbose)
+        _has_contractions(verbose)
+        or _has_standalone_negation(verbose)
+        or _has_multiword_negation(verbose)
     )
-    
+
     if not has_input_negation:
         return True, ""  # No negation to preserve
-    
+
     # Input has negation - check if output preserved it
     has_output_negation = (
-        _has_contractions(compressed) or
-        _has_standalone_negation(compressed) or
-        _has_multiword_negation(compressed) or
-        _has_negation_symbols(compressed, strict=False)  # Allow symbols in compressed
+        _has_contractions(compressed)
+        or _has_standalone_negation(compressed)
+        or _has_multiword_negation(compressed)
+        or _has_negation_symbols(compressed, strict=False)  # Allow symbols in compressed
     )
-    
+
     if not has_output_negation:
         return False, "Negation lost"
-    
+
     return True, ""
 
 
@@ -514,6 +507,27 @@ def sanitize_and_extract(input_path: Path, sanitized_path: Path, unsanitized_pat
 
     data = []
 
+    stats = {
+        "total_input": 0,
+        "code_samples": 0,
+        "nl_samples": 0,
+        "code_passed": 0,
+        "nl_passed": 0,
+        "rule_a_failed": 0,
+        "rule_b_failed": 0,
+        "rule_c_failed": 0,
+        "rule_d_failed": 0,
+        "parse_errors": 0,
+        "passed_all": 0,
+        "failed_all": 0,
+        "failed_samples": [],
+        "passed_samples": [],
+        "parse_error_samples": [],
+    }
+
+    sanitized_data = []
+    unsanitized_data = []
+
     with open(input_path, encoding="utf-8") as f:
         for idx, line in enumerate(f):
             if not line.strip():
@@ -540,29 +554,9 @@ def sanitize_and_extract(input_path: Path, sanitized_path: Path, unsanitized_pat
                 print(f"⚠ {error_msg}")
                 continue
 
-
     print(f"✓ Loaded {len(data)} samples\n")
 
-    stats = {
-        "total_input": len(data),
-        "code_samples": 0,
-        "nl_samples": 0,
-        "code_passed": 0,
-        "nl_passed": 0,
-        "rule_a_failed": 0,
-        "rule_b_failed": 0,
-        "rule_c_failed": 0,
-        "rule_d_failed": 0,
-        "parse_errors": 0,
-        "passed_all": 0,
-        "failed_all": 0,
-        "failed_samples": [],
-        "passed_samples": [],
-        "parse_error_samples": [],
-    }
-
-    sanitized_data = []
-    unsanitized_data = []
+    stats["total_input"] = len(data)
 
     print("Processing samples...\n")
 
@@ -695,12 +689,20 @@ def print_statistics(stats: dict):
     print(f"  NL samples:               {nl:5d} ({pct(nl, total):5.1f}%)")
     print()
 
-    print(f"✓ SANITIZED (passed):       {stats['passed_all']:5d} ({pct(stats['passed_all'], total):5.1f}%)")
-    print(f"  Code:                     {stats['code_passed']:5d} ({pct(stats['code_passed'], code):5.1f}%)")
-    print(f"  NL:                       {stats['nl_passed']:5d} ({pct(stats['nl_passed'], nl):5.1f}%)")
+    print(
+        f"✓ SANITIZED (passed):       {stats['passed_all']:5d} ({pct(stats['passed_all'], total):5.1f}%)"
+    )
+    print(
+        f"  Code:                     {stats['code_passed']:5d} ({pct(stats['code_passed'], code):5.1f}%)"
+    )
+    print(
+        f"  NL:                       {stats['nl_passed']:5d} ({pct(stats['nl_passed'], nl):5.1f}%)"
+    )
     print()
 
-    print(f"✗ UNSANITIZED (failed):     {stats['failed_all']:5d} ({pct(stats['failed_all'], total):5.1f}%)")
+    print(
+        f"✗ UNSANITIZED (failed):     {stats['failed_all']:5d} ({pct(stats['failed_all'], total):5.1f}%)"
+    )
     print()
 
     print("Failed by rule:")
@@ -731,7 +733,6 @@ def print_statistics(stats: dict):
         print(f"  Reason: {item['reason']}")
         print(f"  Failed rules: {', '.join(item.get('failed_rules', []))}")
         print()
-
 
 
 # ============================================================================
