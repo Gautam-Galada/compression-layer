@@ -394,10 +394,7 @@ def _has_standalone_negation(text: str) -> bool:
         "nowhere",
     ]
 
-    for word in words:
-        if re.search(r"\b" + re.escape(word) + r"\b", normalized):
-            return True
-    return False
+    return any(re.search(r"\b" + re.escape(word) + r"\b", normalized) for word in words)
 
 
 def _has_multiword_negation(text: str) -> bool:
