@@ -20,6 +20,10 @@ from pathlib import Path
 
 import pytest
 
+# Skip entire module if dagshub/mlflow not installed (optional dependencies)
+pytest.importorskip("dagshub", reason="dagshub not installed (optional [mlflow] extra)")
+pytest.importorskip("mlflow", reason="mlflow not installed (optional [mlflow] extra)")
+
 
 class MlflowRecorder:
     """Mock MLflow client that records all operations."""
