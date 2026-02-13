@@ -64,7 +64,7 @@ cloud:
   
   training:
     epochs: 3
-    steps: 300 # If omitted, computed as epochs * 100
+    # Tinker training duration is controlled by epochs in scripts/train_tinker.py
     batch_size: 4
     learning_rate: 2.0e-4
     warmup_ratio: 0.03

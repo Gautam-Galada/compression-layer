@@ -140,7 +140,6 @@ training_client = service_client.create_lora_training_client(
 config = TinkerTrainingConfig(
     base_model="Qwen/Qwen3-8B",
     epochs=3,
-    steps=300,
 )
 
 # Run training loop and persist metadata
