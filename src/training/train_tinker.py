@@ -23,6 +23,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import yaml
@@ -154,7 +155,7 @@ class TinkerClient:
         except ImportError:
             return False
 
-    def _load_tinker_module(self):
+    def _load_tinker_module(self) -> ModuleType:
         """Import and return the installed tinker module."""
         return __import__("tinker")
 
@@ -385,15 +386,15 @@ def train_on_tinker(
             error=f"Training file not found: {train_file}",
         )
 
-    if client.has_service_client_api() and not client.has_legacy_client_api():
-        if not config.wait_for_completion:
-            return TinkerTrainingResult(
-                success=False,
-                error="--no-wait is not supported with the installed ServiceClient SDK mode.",
-            )
-        return _train_with_service_client_sdk(config, api_key=client.api_key)
-
     try:
+        if client.has_service_client_api() and not client.has_legacy_client_api():
+            if not config.wait_for_completion:
+                return TinkerTrainingResult(
+                    success=False,
+                    error="--no-wait is not supported with the installed ServiceClient SDK mode.",
+                )
+            return _train_with_service_client_sdk(config, api_key=client.api_key)
+
         # Generate dataset name if not provided
         dataset_name = config.dataset_name or f"compression-{int(time.time())}"
 
@@ -571,6 +572,12 @@ def _train_with_service_client_sdk(
                     total_steps,
                     f"{step_loss:.4f}" if step_loss is not None else "n/a",
                 )
+
+    if current_step == 0:
+        return TinkerTrainingResult(
+            success=False,
+            error="No valid training examples were found after parsing train.jsonl",
+        )
 
     save_name = config.dataset_name or f"compression-{int(time.time())}"
     save_response = training_client.save_state(save_name).result()
