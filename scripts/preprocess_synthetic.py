@@ -12,6 +12,7 @@ import json
 import re
 import sys
 from collections import defaultdict
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -118,64 +119,63 @@ def preprocess_file(
     rejected_by_reason: defaultdict[str, int] = defaultdict(int)
     stats = PreprocessStats()
 
-    with (
-        open(input_path, encoding="utf-8") as in_file,
-        open(output_path, "w", encoding="utf-8") as out_file,
-    ):
-        rejected_file = open(rejected_path, "w", encoding="utf-8") if rejected_path else None
-        try:
-            for line_number, line in enumerate(in_file, start=1):
-                if not line.strip():
-                    continue
+    with ExitStack() as stack:
+        in_file = stack.enter_context(open(input_path, encoding="utf-8"))
+        out_file = stack.enter_context(open(output_path, "w", encoding="utf-8"))
+        rejected_file = (
+            stack.enter_context(open(rejected_path, "w", encoding="utf-8"))
+            if rejected_path
+            else None
+        )
+        for line_number, line in enumerate(in_file, start=1):
+            if not line.strip():
+                continue
 
-                stats.total += 1
+            stats.total += 1
 
-                try:
-                    record = json.loads(line)
-                except json.JSONDecodeError:
-                    reason = "json_decode_error"
-                    stats.rejected += 1
-                    rejected_by_reason[reason] += 1
-                    if rejected_file:
-                        rejected_file.write(
-                            json.dumps(
-                                {
-                                    "reason": reason,
-                                    "line_number": line_number,
-                                    "raw": line.rstrip("\n"),
-                                },
-                                ensure_ascii=False,
-                            )
-                            + "\n"
-                        )
-                    continue
-
-                cleaned, reason = clean_pair(record, config)
-
-                if cleaned is not None:
-                    stats.passed += 1
-                    out_file.write(json.dumps(cleaned, ensure_ascii=False) + "\n")
-                    continue
-
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                reason = "json_decode_error"
                 stats.rejected += 1
-                assert reason is not None
                 rejected_by_reason[reason] += 1
-
                 if rejected_file:
                     rejected_file.write(
                         json.dumps(
                             {
                                 "reason": reason,
                                 "line_number": line_number,
-                                "pair": record,
+                                "raw": line.rstrip("\n"),
                             },
                             ensure_ascii=False,
                         )
                         + "\n"
                     )
-        finally:
+                continue
+
+            cleaned, reason = clean_pair(record, config)
+
+            if cleaned is not None:
+                stats.passed += 1
+                out_file.write(json.dumps(cleaned, ensure_ascii=False) + "\n")
+                continue
+
+            stats.rejected += 1
+            assert reason is not None
+            rejected_by_reason[reason] += 1
+
             if rejected_file:
-                rejected_file.close()
+                rejected_file.write(
+                    json.dumps(
+                        {
+                            "reason": reason,
+                            "line_number": line_number,
+                            "pair": record,
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
 
     stats.rejected_by_reason = dict(sorted(rejected_by_reason.items(), key=lambda item: item[0]))
     return stats
