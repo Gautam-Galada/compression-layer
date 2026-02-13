@@ -616,6 +616,12 @@ def _train_with_service_client_sdk(
     api_key: str,
 ) -> TinkerTrainingResult:
     """Train via the modern Tinker ServiceClient/TrainingClient SDK flow."""
+    if config.log_interval_steps <= 0:
+        return TinkerTrainingResult(
+            success=False,
+            error="log_interval_steps must be greater than 0",
+        )
+
     tinker = __import__("tinker")
 
     train_file = config.dataset_path / "train.jsonl"
@@ -654,6 +660,14 @@ def _train_with_service_client_sdk(
         resumed = True
         logger.info("Resuming ServiceClient training from checkpoint: %s", latest_checkpoint_path)
     else:
+        if latest_checkpoint_path:
+            logger.warning(
+                "Resume checkpoint found but SDK cannot restore optimizer state; "
+                "starting fresh training for %s",
+                config.model,
+            )
+            latest_checkpoint_path = ""
+            completed_steps = 0
         training_client = service_client.create_lora_training_client(
             base_model=config.model,
             rank=config.lora.rank,
@@ -831,6 +845,7 @@ def _train_with_service_client_sdk(
                             "created_at": _utc_now_iso(),
                         }
                     )
+                    state["completed_steps"] = current_step
                     state["latest_checkpoint_path"] = checkpoint_path
                     state["checkpoints"] = checkpoints
                     state["updated_at"] = _utc_now_iso()
