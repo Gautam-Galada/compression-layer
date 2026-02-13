@@ -153,6 +153,24 @@ def preprocess_file(
                     )
                 continue
 
+            if not isinstance(record, dict):
+                reason = "record_not_object"
+                stats.rejected += 1
+                rejected_by_reason[reason] += 1
+                if rejected_file:
+                    rejected_file.write(
+                        json.dumps(
+                            {
+                                "reason": reason,
+                                "line_number": line_number,
+                                "record": record,
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "\n"
+                    )
+                continue
+
             cleaned, reason = clean_pair(record, config)
 
             if cleaned is not None:

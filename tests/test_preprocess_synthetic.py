@@ -82,3 +82,41 @@ def test_preprocess_file_writes_clean_and_rejected_samples(tmp_path) -> None:
     assert len(rejected_lines) == 2
     rejected = [json.loads(line) for line in rejected_lines]
     assert all(item["reason"] == "char_ratio_ge_1.0" for item in rejected)
+
+
+def test_preprocess_file_rejects_non_object_json_records(tmp_path) -> None:
+    input_path = tmp_path / "synthetic.jsonl"
+    output_path = tmp_path / "validated.jsonl"
+    rejected_path = tmp_path / "rejected.jsonl"
+
+    lines = [
+        json.dumps(
+            {
+                "verbose": "A short input sentence.",
+                "compressed": "short input",
+                "domain": "nl",
+                "metadata": {},
+            }
+        ),
+        json.dumps([]),
+        json.dumps("text"),
+        json.dumps(None),
+    ]
+    input_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    stats = preprocess_file(
+        input_path=input_path,
+        output_path=output_path,
+        rejected_path=rejected_path,
+        config=PreprocessConfig(max_token_ratio=2.0),
+    )
+
+    assert stats.total == 4
+    assert stats.passed == 1
+    assert stats.rejected == 3
+    assert stats.rejected_by_reason["record_not_object"] == 3
+
+    rejected_lines = rejected_path.read_text(encoding="utf-8").strip().splitlines()
+    assert len(rejected_lines) == 3
+    rejected = [json.loads(line) for line in rejected_lines]
+    assert all(item["reason"] == "record_not_object" for item in rejected)
