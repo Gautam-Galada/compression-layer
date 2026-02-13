@@ -144,6 +144,40 @@ Examples:
         default=128,
         help="LoRA alpha (default: 128)",
     )
+    parser.add_argument(
+        "--log-interval-steps",
+        type=int,
+        default=10,
+        help="How often to log train metrics (default: 10)",
+    )
+    parser.add_argument(
+        "--checkpoint-interval-steps",
+        type=int,
+        default=250,
+        help="How often to save resumable checkpoints (default: 250)",
+    )
+    parser.add_argument(
+        "--eval-interval-steps",
+        type=int,
+        default=0,
+        help="How often to run validation during an epoch (0 disables, default: 0)",
+    )
+    parser.add_argument(
+        "--no-eval-at-epoch-end",
+        action="store_true",
+        help="Disable validation pass at epoch end",
+    )
+    parser.add_argument(
+        "--checkpoint-ttl-seconds",
+        type=int,
+        default=None,
+        help="Optional TTL for saved checkpoints in seconds",
+    )
+    parser.add_argument(
+        "--no-resume",
+        action="store_true",
+        help="Disable auto-resume from latest checkpoint in output directory",
+    )
 
     # Job control
     parser.add_argument(
@@ -207,6 +241,11 @@ def print_config(config: TinkerTrainingConfig) -> None:
     table.add_row("Learning Rate", f"{config.learning_rate:.0e}")
     table.add_row("LoRA Rank", str(config.lora.rank))
     table.add_row("LoRA Alpha", str(config.lora.alpha))
+    table.add_row("Log Interval", str(config.log_interval_steps))
+    table.add_row("Checkpoint Every", str(config.checkpoint_interval_steps))
+    table.add_row("Eval Every", str(config.eval_interval_steps))
+    table.add_row("Eval Epoch End", str(config.eval_at_epoch_end))
+    table.add_row("Auto Resume", str(config.resume_from_checkpoint))
 
     console.print(table)
 
@@ -240,6 +279,12 @@ def main() -> int:
     config.lora = TinkerLoRAConfig(rank=args.lora_rank, alpha=args.lora_alpha)
     config.wait_for_completion = not args.no_wait
     config.dataset_name = args.dataset_name
+    config.log_interval_steps = args.log_interval_steps
+    config.checkpoint_interval_steps = args.checkpoint_interval_steps
+    config.eval_interval_steps = args.eval_interval_steps
+    config.eval_at_epoch_end = not args.no_eval_at_epoch_end
+    config.checkpoint_ttl_seconds = args.checkpoint_ttl_seconds
+    config.resume_from_checkpoint = not args.no_resume
 
     # Handle status check
     if args.status:

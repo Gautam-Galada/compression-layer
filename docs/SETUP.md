@@ -122,49 +122,65 @@ TINKER_API_KEY=tk_...
 
 ### 2.2 Training with Tinker
 
-```python
-# src/training/train_tinker.py
-import os
-from tinker import ServiceClient
-from pathlib import Path
+Use the CLI wrapper for end-to-end training:
 
-from src.training.train_tinker import TinkerTrainingConfig, run_training_loop, write_run_metadata
-
-# Initialize SDK clients
-service_client = ServiceClient(api_key=os.environ["TINKER_API_KEY"])
-training_client = service_client.create_lora_training_client(
-    base_model="Qwen/Qwen3-8B",
-)
-
-# Configure training
-config = TinkerTrainingConfig(
-    base_model="Qwen/Qwen3-8B",
-    epochs=3,
-)
-
-# Run training loop and persist metadata
-metadata = run_training_loop(training_client, config)
-metadata_path = write_run_metadata(metadata, output_dir=Path("models/adapters/tinker"))
-print(f"Run ID: {metadata.run_id}")
-print(f"Run metadata: {metadata_path}")
+```bash
+python scripts/train_tinker.py \
+  --config configs/training.yaml \
+  --output models/adapters/tinker
 ```
+
+ServiceClient mode writes artifacts directly in `--output`:
+
+- `tinker_run.json` (resume state + checkpoint history)
+- `run.json` (MLflow-compatible run metadata)
+- `train.log` (train/val lines parsed by `scripts/mlflow_logger.py`)
+- `metrics.jsonl` (structured metric events)
+
+Auto-resume is enabled by default and uses `latest_checkpoint_path` from
+`tinker_run.json`.
 
 ### 2.3 Tinker CLI Workflow
 
 ```bash
-# Start training (records run metadata under models/adapters/tinker/runs)
+# Start training with config defaults
 python scripts/train_tinker.py \
   --config configs/training.yaml \
   --output models/adapters/tinker
 
-# Check status
+# Customize training telemetry/checkpoints
 python scripts/train_tinker.py \
-  --status <run-id> \
-  --output models/adapters/tinker
+  --config configs/training.yaml \
+  --output models/adapters/tinker \
+  --log-interval-steps 10 \
+  --checkpoint-interval-steps 250 \
+  --eval-interval-steps 100
 
-# Inspect run metadata
-cat models/adapters/tinker/runs/<run-id>.json
+# Disable auto-resume for a fresh run in same output dir
+python scripts/train_tinker.py \
+  --config configs/training.yaml \
+  --output models/adapters/tinker \
+  --no-resume
+
+# Check status (legacy Client API mode)
+python scripts/train_tinker.py --status <job-id>
+
+# Inspect service-mode run artifacts
+cat models/adapters/tinker/tinker_run.json
+cat models/adapters/tinker/run.json
+
+# Send artifacts to MLflow/DagsHub
+python scripts/mlflow_logger.py \
+  --run-dir models/adapters/tinker \
+  --experiment-name "compression-v2" \
+  --dagshub-owner Sudhendra \
+  --dagshub-repo compression-layer
 ```
+
+Additional useful flags:
+
+- `--no-eval-at-epoch-end`
+- `--checkpoint-ttl-seconds <seconds>`
 
 ### 2.4 Cost Estimation
 
@@ -258,8 +274,10 @@ python scripts/validate_batch.py --input data/seed/pairs.jsonl
 ### Tinker job failed
 - Check dataset format (JSONL with `text` or `messages` field)
 - Verify API key in `.env` or shell: `TINKER_API_KEY`
-- Inspect run metadata: `models/adapters/tinker/runs/<run-id>.json`
-- Re-run status: `python scripts/train_tinker.py --status <run-id> --output models/adapters/tinker`
+- Inspect run metadata: `models/adapters/tinker/tinker_run.json`
+- Inspect MLflow metadata/logs: `models/adapters/tinker/run.json`, `models/adapters/tinker/train.log`
+- Re-run same command to resume from latest checkpoint (default)
+- Add `--no-resume` to force a fresh run in an existing output directory
 
 ### Slow local inference
 - Ensure using 4-bit model: `*-4bit`
