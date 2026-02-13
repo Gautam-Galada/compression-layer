@@ -63,6 +63,8 @@ data/synthetic/
 data/validated/
 data/final/
 data/cache/
+data/archive/
+data/training/unsanitized_*.jsonl
 data/*.jsonl
 data/*.json
 data/costs.log
@@ -130,3 +132,5 @@ temp/
 .windsurf/
 .zencoder/
 skills/
+data/training_v1/
+data/validated_v1/

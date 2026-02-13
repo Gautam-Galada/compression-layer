@@ -63,19 +63,22 @@ python -m mlx_lm.generate \
 For quick iteration with Qwen3-4B:
 
 ```bash
-# Fine-tune with MLX LoRA (local)
+# Fine-tune with MLX LoRA (recommended wrapper script)
+python scripts/train_local.py --train
+
+# Or run mlx_lm directly
 python -m mlx_lm.lora \
-  --model mlx-community/Qwen3-4B-Instruct-4bit \
+  --model mlx-community/Qwen3-4B-Instruct-2507-8bit \
   --train \
-  --data ./data/validated \
-  --iters 100 \
+  --data ./data/training \
+  --iters 500 \
   --batch-size 2 \
   --lora-rank 8
 
 # Test adapter
 python -m mlx_lm.generate \
-  --model mlx-community/Qwen3-4B-Instruct-4bit \
-  --adapter-path ./adapters \
+  --model mlx-community/Qwen3-4B-Instruct-2507-8bit \
+  --adapter-path models/runs/mlx/latest/adapter \
   --prompt "Compress: ..."
 ```
 
@@ -192,6 +195,11 @@ HF_HUB_ENABLE_HF_TRANSFER=1
 
 # Tinker (cloud training)
 TINKER_API_KEY=tk_...
+
+# DagsHub/MLflow (experiment tracking, optional)
+DAGSHUB_OWNER=Sudhendra
+DAGSHUB_REPO=compression-layer
+# MLFLOW_TRACKING_URI is auto-derived from owner/repo if omitted
 ```
 
 ---
@@ -219,13 +227,21 @@ TINKER_API_KEY=tk_...
 
 ```bash
 # Local inference
-python -m mlx_lm.generate --model mlx-community/Qwen3-4B-Instruct-4bit --prompt "..."
+python -m mlx_lm.generate --model mlx-community/Qwen3-4B-Instruct-2507-8bit --prompt "..."
 
-# Local training (small scale)
-python -m mlx_lm.lora --model mlx-community/Qwen3-4B-Instruct-4bit --train --data ./data
+# Local training (wrapper script with run storage)
+python scripts/train_local.py --train
 
 # Cloud training (production)
 python scripts/train_tinker.py --config configs/training.yaml --output models/adapters/tinker
+
+# Post-training MLflow logging
+python scripts/mlflow_logger.py --experiment-name "compression-v2" --dagshub-owner Sudhendra
+
+# Data preprocessing pipeline
+python scripts/preprocess_synthetic.py --input data/synthetic/nl_v2.jsonl --output data/validated/nl_pairs.jsonl
+python scripts/format_training_data.py --input data/validated --output data/training
+python scripts/data_sanitization.py --input data/training/train.jsonl --sanitized data/training/sanitized_train.jsonl --unsanitized data/training/unsanitized_train.jsonl
 
 # Run validation
 python scripts/validate_batch.py --input data/seed/pairs.jsonl
