@@ -69,6 +69,12 @@ cloud:
     learning_rate: 2.0e-4
     warmup_ratio: 0.03
     max_seq_length: 2048
+    log_interval_steps: 10
+    checkpoint_interval_steps: 250
+    eval_interval_steps: 0      # 0 disables mid-epoch evals
+    eval_at_epoch_end: true
+    checkpoint_ttl_seconds: null
+    resume_from_checkpoint: true
 
 # === OUTPUT PATHS ===
 output:
