@@ -119,6 +119,12 @@ gh pr merge --squash
 | `src/training/train_mlx.py` | Local MLX training |
 | `src/inference/compressor.py` | Production inference service |
 | `configs/training.yaml` | Model & hyperparameters |
+| `scripts/train_local.py` | CLI for MLX training with run storage |
+| `scripts/preprocess_synthetic.py` | Heuristic filtering of synthetic pairs |
+| `scripts/format_training_data.py` | Format validated pairs into train/valid/test splits |
+| `scripts/data_sanitization.py` | Structure/role/encoding checks on training data |
+| `scripts/mlflow_logger.py` | Post-training MLflow/DagsHub logging |
+| `scripts/evaluate_adapter.py` | Cross-model equivalence evaluation |
 
 ## Task-Specific Instructions
 
@@ -201,6 +207,8 @@ OPENAI_API_KEY=
 GOOGLE_API_KEY=
 HF_TOKEN=              # For model downloads
 TINKER_API_KEY=        # For cloud training
+DAGSHUB_OWNER=         # For MLflow logging (default: Sudhendra)
+DAGSHUB_REPO=          # For MLflow logging (default: compression-layer)
 ```
 
 ## Quick Commands
@@ -216,14 +224,27 @@ gh pr create --title "Phase X: Description" --body "## Summary\n- bullet points"
 # Check PR CI status
 gh pr checks
 
+# === DATA PIPELINE ===
+# Preprocess synthetic pairs (strip artifacts, filter by ratio)
+python scripts/preprocess_synthetic.py --input data/synthetic/nl_v2.jsonl --output data/validated/nl_pairs.jsonl --rejected data/validated/rejected_nl_pairs.jsonl --max-char-ratio 0.95 --max-token-ratio 0.95
+
+# Format into train/valid/test splits
+python scripts/format_training_data.py --input data/validated --output data/training --train-ratio 0.8 --valid-ratio 0.1 --test-ratio 0.1 --seed 42
+
+# Sanitize training data
+python scripts/data_sanitization.py --input data/training/train.jsonl --sanitized data/training/sanitized_train.jsonl --unsanitized data/training/unsanitized_train.jsonl
+
 # === LOCAL INFERENCE (MLX) ===
-python -m mlx_lm.generate --model mlx-community/Qwen3-4B-Instruct-4bit --prompt "..."
+python -m mlx_lm.generate --model mlx-community/Qwen3-4B-Instruct-2507-8bit --prompt "..."
 
 # === LOCAL TRAINING (MLX) ===
-python -m mlx_lm.lora --model mlx-community/Qwen3-4B-Instruct-4bit --train --data ./data
+python scripts/train_local.py --train
 
 # === CLOUD TRAINING (Tinker) ===
 python scripts/train_tinker.py --config configs/training.yaml --output models/adapters/tinker
+
+# === POST-TRAINING LOGGING ===
+python scripts/mlflow_logger.py --experiment-name "compression-v2" --dagshub-owner Sudhendra --dagshub-repo compression-layer
 
 # === VALIDATION ===
 python scripts/validate_batch.py --input data/seed/pairs.jsonl

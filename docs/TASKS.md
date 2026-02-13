@@ -154,19 +154,52 @@ See: `docs/plans/2026-01-31-v2-production-training.md`
 - Train production model on Tinker (Qwen3-8B)
 - Release model on HuggingFace
 
-### Tasks
-- [ ] Create adapter-based compression generator
-- [ ] Generate 5K+ code pairs using v1 adapter
-- [ ] Generate 5K+ NL pairs using v1 adapter
-- [ ] Validate synthetic pairs (Claude + GPT)
-- [ ] Train v2 model on Tinker
-- [ ] Evaluate and compare with v1
-- [ ] Package and release model
+### Data Generation ✅ COMPLETE
+- [x] Generate synthetic code pairs using v1 adapter → **17,315 pairs** (`data/synthetic/code_v2.jsonl`)
+- [x] Generate synthetic NL pairs using v1 adapter → **17,056 pairs** (`data/synthetic/nl_v2.jsonl`)
+- [x] Total raw synthetic: **34,371 pairs**
 
-### Estimated Costs
-- Validation: $40-80
-- Tinker training: $10-20
-- Total: ~$55-110
+### Data Preprocessing & Sanitization ✅ COMPLETE
+- [x] Build heuristic preprocessing script (`scripts/preprocess_synthetic.py`)
+  - Strips `<think>`/`<tool_call>` generation artifacts
+  - Filters by character ratio and token ratio thresholds
+  - Writes clean + rejected outputs with rejection reasons
+- [x] Preprocess code pairs (max-char-ratio 1.0, max-token-ratio 1.0) → **17,125 passed**, 190 rejected
+- [x] Preprocess NL pairs (max-char-ratio 0.95, max-token-ratio 0.95) → **10,505 passed**, 6,551 rejected
+- [x] Format into train/valid/test splits (80/10/10, seed 42) via `scripts/format_training_data.py`
+- [x] Sanitize all splits via `scripts/data_sanitization.py` (structure, role, encoding checks)
+- [x] Validate final data: 0 bad JSON, 0 bad messages, 0 bad roles across all splits
+
+### V2 Data Summary
+| Split | Count | Status |
+|-------|-------|--------|
+| `data/training/train.jsonl` | 19,845 | Sanitized, chat format ✅ |
+| `data/training/valid.jsonl` | 2,473 | Sanitized, chat format ✅ |
+| `data/training/test.jsonl` | 2,497 | Sanitized, chat format ✅ |
+| Unsanitized (rejected by sanitizer) | 2,815 | Archived |
+
+All training files have correct `(system, user, assistant)` message structure.
+Prompt masking verified: loss computed only on assistant tokens (`--mask-prompt`).
+
+### MLflow/DagsHub Logging ✅ COMPLETE
+- [x] Post-training MLflow logger (`scripts/mlflow_logger.py`)
+  - Reads `run.json` + `train.log` from MLX run directories
+  - Logs params, step metrics, artifacts, and loss curve plots to DagsHub/MLflow
+  - CLI: `--experiment-name`, `--dagshub-owner`, `--dagshub-repo`
+- [x] Dependencies installed: `dagshub` (v0.6.5), `mlflow` (v3.9.0)
+
+### Remaining Tasks
+- [ ] Train v2 model locally (MLX) on 19,845 examples
+- [ ] Train v2 model on Tinker (Qwen3-8B) for production
+- [ ] Evaluate v2 and compare with v1
+- [ ] Log v2 training run to DagsHub/MLflow
+- [ ] Package and release model on HuggingFace
+
+### Cost Notes
+- Synthetic generation: done via v1 adapter (free, local)
+- Preprocessing/sanitization: heuristic pipeline (free, no API calls)
+- Multi-model validation skipped in favor of heuristic filtering (saved ~$40-80)
+- Tinker training: ~$10-20 estimated
 
 ---
 

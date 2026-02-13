@@ -4,8 +4,8 @@
 
 Universal semantic compression layer for LLM inputs. Compresses memories, code, context before API calls while preserving reasoning equivalence across Claude/GPT/Gemini.
 
-**Model**: Qwen3-8B (via Unsloth)  
-**Training**: Unsloth + LoRA (2-5x faster, 70% less VRAM)  
+**Model**: Qwen3-4B-Instruct-2507-8bit (local MLX) / Qwen3-8B (Tinker cloud)  
+**Training**: MLX LoRA (local) + Tinker (cloud production)  
 **License**: Apache 2.0  
 **Repo**: https://github.com/Sudhendra/compression-layer
 
@@ -75,11 +75,12 @@ gh pr merge --squash
 
 - `src/validation/` — Equivalence testing across models
 - `src/generation/` — Compression pair synthesis
-- `src/training/` — Unsloth fine-tuning on Qwen3-8B
+- `src/training/` — MLX local + Tinker cloud fine-tuning
 - `src/inference/` — Production compressor
-- `data/raw/` — Source corpora (gitignored)
-- `data/validated/` — Cross-model validated pairs
-- `models/` — LoRA checkpoints, GGUF exports
+- `data/synthetic/` — Raw synthetic pairs from v1 adapter (gitignored)
+- `data/validated/` — Preprocessed and filtered pairs (gitignored)
+- `data/training/` — Final train/valid/test splits in chat format (gitignored)
+- `models/` — LoRA checkpoints, run logs, GGUF exports (gitignored)
 
 ## Code Conventions
 
@@ -115,7 +116,20 @@ OPENAI_API_KEY=
 GOOGLE_API_KEY=
 HF_TOKEN=           # For model downloads
 TINKER_API_KEY=     # For cloud training
+DAGSHUB_OWNER=      # For MLflow logging (default: Sudhendra)
+DAGSHUB_REPO=       # For MLflow logging (default: compression-layer)
 ```
+
+## Key Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/train_local.py` | MLX LoRA training with run storage |
+| `scripts/preprocess_synthetic.py` | Heuristic filtering of synthetic pairs |
+| `scripts/format_training_data.py` | Format validated pairs into train/valid/test splits |
+| `scripts/data_sanitization.py` | Structure/role/encoding checks on training data |
+| `scripts/mlflow_logger.py` | Post-training MLflow/DagsHub logging |
+| `scripts/evaluate_adapter.py` | Cross-model equivalence evaluation |
 
 ## Common Tasks
 
