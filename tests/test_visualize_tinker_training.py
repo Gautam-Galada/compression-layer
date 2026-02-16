@@ -4,17 +4,16 @@ import json
 import tempfile
 from pathlib import Path
 
-from scripts.visualize_tinker_training import TinkerMetricsParser, TinkerTrainingMetrics
+from scripts.visualize_tinker_training import TinkerMetricsParser
 
 
 class TestTinkerMetricsParser:
     def _write_metrics(self, records: list[dict]) -> Path:
         """Write records to a temp JSONL file and return the path."""
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
-        for record in records:
-            tmp.write(json.dumps(record) + "\n")
-        tmp.close()
-        return Path(tmp.name)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as tmp:
+            for record in records:
+                tmp.write(json.dumps(record) + "\n")
+            return Path(tmp.name)
 
     def test_parse_train_entries(self):
         path = self._write_metrics(
@@ -170,34 +169,34 @@ class TestTinkerMetricsParser:
 
     def test_blank_lines_skipped(self):
         """Blank lines in the JSONL file are skipped gracefully."""
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
-        tmp.write(
-            json.dumps(
-                {
-                    "type": "train",
-                    "step": 10,
-                    "epoch": 1,
-                    "train_loss": 5.0,
-                    "tokens_per_sec": 100.0,
-                }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as tmp:
+            tmp.write(
+                json.dumps(
+                    {
+                        "type": "train",
+                        "step": 10,
+                        "epoch": 1,
+                        "train_loss": 5.0,
+                        "tokens_per_sec": 100.0,
+                    }
+                )
+                + "\n"
             )
-            + "\n"
-        )
-        tmp.write("\n")
-        tmp.write(
-            json.dumps(
-                {
-                    "type": "train",
-                    "step": 20,
-                    "epoch": 1,
-                    "train_loss": 4.0,
-                    "tokens_per_sec": 200.0,
-                }
+            tmp.write("\n")
+            tmp.write(
+                json.dumps(
+                    {
+                        "type": "train",
+                        "step": 20,
+                        "epoch": 1,
+                        "train_loss": 4.0,
+                        "tokens_per_sec": 200.0,
+                    }
+                )
+                + "\n"
             )
-            + "\n"
-        )
-        tmp.close()
-        metrics = TinkerMetricsParser().parse(Path(tmp.name))
+            tmp_path = Path(tmp.name)
+        metrics = TinkerMetricsParser().parse(tmp_path)
         assert metrics.train_steps == [10, 20]
 
     def test_multiple_epoch_boundaries(self):
