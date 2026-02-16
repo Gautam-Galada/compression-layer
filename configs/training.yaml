@@ -50,9 +50,9 @@ cloud:
   #   - Qwen/Qwen3-30B-A3B (MoE, good quality/cost ratio)
   
   lora:
-    rank: 64          # Higher rank for better quality
-    alpha: 128        # Usually 2x rank
-    dropout: 0.0
+    rank: 16           # Down from 64; r=16 is sweet spot for 8B models
+    alpha: 32           # 2x rank convention (was 128)
+    dropout: 0.05       # Mild regularization (was 0.0)
     target_modules:
       - q_proj
       - k_proj
@@ -63,18 +63,20 @@ cloud:
       - down_proj
   
   training:
-    epochs: 3
-    # Tinker training duration is controlled by epochs in scripts/train_tinker.py
+    epochs: 2                       # Down from 3; expect early stopping at ~1-1.5 epochs
     batch_size: 4
     learning_rate: 2.0e-4
     warmup_ratio: 0.03
     max_seq_length: 2048
     log_interval_steps: 10
     checkpoint_interval_steps: 250
-    eval_interval_steps: 0      # 0 disables mid-epoch evals
+    eval_interval_steps: 250        # Was 0 (disabled!); now eval every 250 steps
     eval_at_epoch_end: true
     checkpoint_ttl_seconds: null
     resume_from_checkpoint: true
+    # Early stopping
+    early_stopping_patience: 5      # NEW: stop after 5 evals with no improvement
+    early_stopping_threshold: 0.01  # NEW: min improvement to count as "better" (absolute)
 
 # === OUTPUT PATHS ===
 output:
