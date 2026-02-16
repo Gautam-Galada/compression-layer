@@ -174,7 +174,14 @@ class TinkerVisualizer:
 
             # Best val loss star
             if metrics.best_val_loss is not None:
-                best_idx = metrics.val_losses.index(metrics.best_val_loss)
+                # Find the closest val loss to best_val_loss (handles rounding differences)
+                try:
+                    best_idx = metrics.val_losses.index(metrics.best_val_loss)
+                except ValueError:
+                    # best_val_loss not exact match; find closest
+                    best_idx = int(
+                        np.argmin([abs(v - metrics.best_val_loss) for v in metrics.val_losses])
+                    )
                 ax_loss.plot(
                     metrics.val_steps[best_idx],
                     metrics.best_val_loss,

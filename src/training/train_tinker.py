@@ -784,9 +784,17 @@ def _train_with_service_client_sdk(
     start_epoch = (completed_steps // steps_per_epoch) + 1
     skip_batches = completed_steps % steps_per_epoch
 
-    # Early stopping state
-    best_val_loss: float | None = None
-    evals_without_improvement = 0
+    # Early stopping state - restore from checkpoint if resuming
+    best_val_loss_raw = existing_state.get("best_val_loss")
+    best_val_loss: float | None = (
+        float(best_val_loss_raw) if isinstance(best_val_loss_raw, (int, float)) else None
+    )
+    evals_without_improvement_raw = existing_state.get("evals_without_improvement", 0)
+    evals_without_improvement = (
+        int(evals_without_improvement_raw)
+        if isinstance(evals_without_improvement_raw, (int, float))
+        else 0
+    )
     stopped_early = False
 
     for epoch in range(start_epoch, config.epochs + 1):
@@ -814,9 +822,10 @@ def _train_with_service_client_sdk(
             current_step += 1
             metrics = getattr(fwdbwd, "metrics", {}) or {}
             step_loss = _extract_loss(metrics)
+            step_loss_per_token: float | None = None
             if step_loss is not None and completion_tokens > 0:
                 step_loss_per_token = step_loss / completion_tokens
-            else:
+            elif step_loss is not None:
                 step_loss_per_token = step_loss
             if step_loss_per_token is not None:
                 final_loss = step_loss_per_token
@@ -856,6 +865,8 @@ def _train_with_service_client_sdk(
                 state["completed_steps"] = current_step
                 state["last_train_loss"] = step_loss_per_token
                 state["updated_at"] = _utc_now_iso()
+                state["best_val_loss"] = best_val_loss
+                state["evals_without_improvement"] = evals_without_improvement
                 _write_service_run_state(run_state_path, state)
 
             if config.eval_interval_steps > 0 and current_step % config.eval_interval_steps == 0:
@@ -883,6 +894,8 @@ def _train_with_service_client_sdk(
                     )
                     state["last_val_loss"] = val_loss
                     state["updated_at"] = _utc_now_iso()
+                    state["best_val_loss"] = best_val_loss
+                    state["evals_without_improvement"] = evals_without_improvement
                     _write_service_run_state(run_state_path, state)
 
                 best_val_loss, evals_without_improvement, should_stop = _check_early_stopping(
