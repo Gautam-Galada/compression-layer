@@ -85,7 +85,7 @@ output:
   fused_model: "models/fused"
 
 # === COST ESTIMATES (Tinker) ===
-# Based on ~2,200 training examples with 80/10/10 split
+# Based on ~19,845 training examples
 # Average ~500 tokens per example (system + user + assistant)
 #
 # Model pricing (per 1M tokens):
@@ -93,8 +93,9 @@ output:
 #   - Qwen3-4B: $0.20
 #   - Qwen3-30B-A3B: $0.45
 #
-# Estimates for 1,759 training examples × 3 epochs:
-#   - Qwen3-8B: ~$1.05
-#   - With validation: ~$1.50-2.00 total
+# With epochs=2 and early stopping (expect ~1.5 effective epochs):
+#   - Full 2 epochs: 19,845 × 500 × 2 × $0.40/1M = ~$7.94
+#   - With early stop (~1.5 epochs): ~$5.95
+#   - Add ~10% for validation passes: ~$6.50-8.75 total
 #
-# Budget for 5 training runs: ~$10-15
+# Budget for 3 training runs: ~$20-25
