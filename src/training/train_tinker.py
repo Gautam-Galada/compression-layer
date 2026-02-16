@@ -39,9 +39,9 @@ logger = logging.getLogger(__name__)
 class TinkerLoRAConfig:
     """LoRA configuration for Tinker training."""
 
-    rank: int = 64
-    alpha: int = 128
-    dropout: float = 0.0
+    rank: int = 16
+    alpha: int = 32
+    dropout: float = 0.05
     target_modules: list[str] = field(
         default_factory=lambda: [
             "q_proj",
@@ -73,7 +73,7 @@ class TinkerTrainingConfig:
     lora: TinkerLoRAConfig = field(default_factory=TinkerLoRAConfig)
 
     # Training parameters
-    epochs: int = 3
+    epochs: int = 2
     batch_size: int = 4
     learning_rate: float = 2e-4
     warmup_ratio: float = 0.03
@@ -90,6 +90,10 @@ class TinkerTrainingConfig:
     eval_at_epoch_end: bool = True
     checkpoint_ttl_seconds: int | None = None
     resume_from_checkpoint: bool = True
+
+    # Early stopping
+    early_stopping_patience: int = 0  # 0 = disabled
+    early_stopping_threshold: float = 0.01
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API calls."""
@@ -537,10 +541,15 @@ def _iter_training_batches(
     tokenizer: Any,
     tinker_module: ModuleType,
     batch_size: int,
-) -> Iterator[tuple[list[Any], int]]:
-    """Yield SDK-ready training batches with token counts from chat JSONL data."""
+) -> Iterator[tuple[list[Any], int, int]]:
+    """Yield SDK-ready training batches with token counts from chat JSONL data.
+
+    Returns (batch, total_tokens, completion_tokens) tuples.
+    completion_tokens = number of tokens with weight=1 (assistant response tokens).
+    """
     batch: list[Any] = []
     batch_tokens = 0
+    batch_completion_tokens = 0
 
     with open(train_file, encoding="utf-8") as f:
         for line_number, line in enumerate(f, start=1):
@@ -562,14 +571,16 @@ def _iter_training_batches(
             sdk_datum, token_count = _to_sdk_datum(local_datum, tinker_module)
             batch.append(sdk_datum)
             batch_tokens += token_count
+            batch_completion_tokens += sum(local_datum.loss_fn_inputs["weights"])
 
             if len(batch) >= batch_size:
-                yield batch, batch_tokens
+                yield batch, batch_tokens, batch_completion_tokens
                 batch = []
                 batch_tokens = 0
+                batch_completion_tokens = 0
 
     if batch:
-        yield batch, batch_tokens
+        yield batch, batch_tokens, batch_completion_tokens
 
 
 def _extract_loss(metrics: dict[str, float]) -> float | None:
@@ -592,23 +603,60 @@ def _run_validation(
     tinker_module: ModuleType,
     batch_size: int,
 ) -> tuple[float | None, int]:
-    """Run validation pass and return mean validation loss and batch count."""
+    """Run validation pass and return mean per-token validation loss and batch count."""
     if not valid_file.exists() or not hasattr(training_client, "forward"):
         return None, 0
 
-    losses: list[float] = []
+    total_loss = 0.0
+    total_completion_tokens = 0
     val_batches = 0
-    for batch, _ in _iter_training_batches(valid_file, tokenizer, tinker_module, batch_size):
+    for batch, _, completion_tokens in _iter_training_batches(
+        valid_file, tokenizer, tinker_module, batch_size
+    ):
         forward_result = training_client.forward(batch, "cross_entropy").result()
         metrics = getattr(forward_result, "metrics", {}) or {}
         val_loss = _extract_loss(metrics)
         if val_loss is not None:
-            losses.append(val_loss)
+            total_loss += val_loss
+            total_completion_tokens += completion_tokens
         val_batches += 1
 
-    if not losses:
+    if total_completion_tokens == 0:
         return None, val_batches
-    return sum(losses) / len(losses), val_batches
+    return total_loss / total_completion_tokens, val_batches
+
+
+def _check_early_stopping(
+    val_loss: float | None,
+    best_val_loss: float | None,
+    evals_without_improvement: int,
+    config: TinkerTrainingConfig,
+    current_step: int,
+) -> tuple[float | None, int, bool]:
+    """Check if early stopping should trigger.
+
+    Returns:
+        Tuple of (best_val_loss, evals_without_improvement, should_stop).
+    """
+    if val_loss is None or config.early_stopping_patience <= 0:
+        return best_val_loss, evals_without_improvement, False
+
+    if best_val_loss is None or val_loss < best_val_loss - config.early_stopping_threshold:
+        return val_loss, 0, False
+
+    evals_without_improvement += 1
+    logger.info(
+        "No val improvement for %d/%d evals (best=%.4f, current=%.4f)",
+        evals_without_improvement,
+        config.early_stopping_patience,
+        best_val_loss,
+        val_loss,
+    )
+    if evals_without_improvement >= config.early_stopping_patience:
+        logger.info("Early stopping triggered at step %d", current_step)
+        return best_val_loss, evals_without_improvement, True
+
+    return best_val_loss, evals_without_improvement, False
 
 
 def _train_with_service_client_sdk(
@@ -735,9 +783,23 @@ def _train_with_service_client_sdk(
 
     start_epoch = (completed_steps // steps_per_epoch) + 1
     skip_batches = completed_steps % steps_per_epoch
+
+    # Early stopping state - restore from checkpoint if resuming
+    best_val_loss_raw = existing_state.get("best_val_loss")
+    best_val_loss: float | None = (
+        float(best_val_loss_raw) if isinstance(best_val_loss_raw, (int, float)) else None
+    )
+    evals_without_improvement_raw = existing_state.get("evals_without_improvement", 0)
+    evals_without_improvement = (
+        int(evals_without_improvement_raw)
+        if isinstance(evals_without_improvement_raw, (int, float))
+        else 0
+    )
+    stopped_early = False
+
     for epoch in range(start_epoch, config.epochs + 1):
         epoch_batch_index = 0
-        for batch, batch_tokens in _iter_training_batches(
+        for batch, batch_tokens, completion_tokens in _iter_training_batches(
             train_file,
             tokenizer,
             tinker,
@@ -760,8 +822,13 @@ def _train_with_service_client_sdk(
             current_step += 1
             metrics = getattr(fwdbwd, "metrics", {}) or {}
             step_loss = _extract_loss(metrics)
-            if step_loss is not None:
-                final_loss = step_loss
+            step_loss_per_token: float | None = None
+            if step_loss is not None and completion_tokens > 0:
+                step_loss_per_token = step_loss / completion_tokens
+            elif step_loss is not None:
+                step_loss_per_token = step_loss
+            if step_loss_per_token is not None:
+                final_loss = step_loss_per_token
 
             if current_step % config.log_interval_steps == 0 or current_step == total_steps:
                 logger.info(
@@ -770,14 +837,14 @@ def _train_with_service_client_sdk(
                     config.epochs,
                     current_step,
                     total_steps,
-                    f"{step_loss:.4f}" if step_loss is not None else "n/a",
+                    f"{step_loss_per_token:.4f}" if step_loss_per_token is not None else "n/a",
                 )
 
-                if step_loss is not None:
+                if step_loss_per_token is not None:
                     _append_train_log_line(
                         train_log_path,
                         (
-                            f"Iter {current_step}: Train loss {step_loss:.4f} "
+                            f"Iter {current_step}: Train loss {step_loss_per_token:.4f} "
                             f"| Tokens/sec {tokens_per_sec:.1f} | Peak mem 0.0 GB"
                         ),
                     )
@@ -788,14 +855,18 @@ def _train_with_service_client_sdk(
                             "type": "train",
                             "step": current_step,
                             "epoch": epoch,
-                            "train_loss": step_loss,
+                            "train_loss": step_loss_per_token,
+                            "train_loss_total": step_loss,
+                            "completion_tokens": completion_tokens,
                             "tokens_per_sec": tokens_per_sec,
                         },
                     )
 
                 state["completed_steps"] = current_step
-                state["last_train_loss"] = step_loss
+                state["last_train_loss"] = step_loss_per_token
                 state["updated_at"] = _utc_now_iso()
+                state["best_val_loss"] = best_val_loss
+                state["evals_without_improvement"] = evals_without_improvement
                 _write_service_run_state(run_state_path, state)
 
             if config.eval_interval_steps > 0 and current_step % config.eval_interval_steps == 0:
@@ -823,7 +894,20 @@ def _train_with_service_client_sdk(
                     )
                     state["last_val_loss"] = val_loss
                     state["updated_at"] = _utc_now_iso()
+                    state["best_val_loss"] = best_val_loss
+                    state["evals_without_improvement"] = evals_without_improvement
                     _write_service_run_state(run_state_path, state)
+
+                best_val_loss, evals_without_improvement, should_stop = _check_early_stopping(
+                    val_loss,
+                    best_val_loss,
+                    evals_without_improvement,
+                    config,
+                    current_step,
+                )
+                if should_stop:
+                    stopped_early = True
+                    break
 
             if (
                 config.checkpoint_interval_steps > 0
@@ -851,6 +935,9 @@ def _train_with_service_client_sdk(
                     state["updated_at"] = _utc_now_iso()
                     _write_service_run_state(run_state_path, state)
 
+        if stopped_early:
+            break
+
         if config.eval_at_epoch_end:
             val_loss, val_batches = _run_validation(
                 training_client,
@@ -877,6 +964,42 @@ def _train_with_service_client_sdk(
                 state["last_val_loss"] = val_loss
                 state["updated_at"] = _utc_now_iso()
                 _write_service_run_state(run_state_path, state)
+
+            best_val_loss, evals_without_improvement, should_stop = _check_early_stopping(
+                val_loss,
+                best_val_loss,
+                evals_without_improvement,
+                config,
+                current_step,
+            )
+            if should_stop:
+                stopped_early = True
+                break
+
+    if stopped_early:
+        _append_train_log_line(
+            train_log_path,
+            f"Early stopping at step {current_step} (best val loss: {best_val_loss:.4f})"
+            if best_val_loss is not None
+            else f"Early stopping at step {current_step}",
+        )
+        _append_jsonl(
+            metrics_path,
+            {
+                "timestamp": _utc_now_iso(),
+                "type": "early_stop",
+                "step": current_step,
+                "best_val_loss": best_val_loss,
+                "evals_without_improvement": evals_without_improvement,
+            },
+        )
+        state["status"] = "completed"
+        state["early_stopped"] = True
+        state["early_stopped_step"] = current_step
+        state["completed_steps"] = current_step
+        state["final_loss"] = final_loss
+        state["updated_at"] = _utc_now_iso()
+        _write_service_run_state(run_state_path, state)
 
     if current_step == completed_steps:
         return TinkerTrainingResult(
@@ -944,8 +1067,9 @@ def load_config_from_yaml(config_path: Path) -> TinkerTrainingConfig:
     return TinkerTrainingConfig(
         model=cloud_config.get("model", "Qwen/Qwen3-8B"),
         lora=TinkerLoRAConfig(
-            rank=lora_config.get("rank", 64),
-            alpha=lora_config.get("alpha", 128),
+            rank=lora_config.get("rank", 16),
+            alpha=lora_config.get("alpha", 32),
+            dropout=lora_config.get("dropout", 0.05),
             target_modules=lora_config.get(
                 "target_modules",
                 ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
@@ -960,6 +1084,8 @@ def load_config_from_yaml(config_path: Path) -> TinkerTrainingConfig:
         eval_at_epoch_end=training_config.get("eval_at_epoch_end", True),
         checkpoint_ttl_seconds=training_config.get("checkpoint_ttl_seconds", None),
         resume_from_checkpoint=training_config.get("resume_from_checkpoint", True),
+        early_stopping_patience=training_config.get("early_stopping_patience", 0),
+        early_stopping_threshold=training_config.get("early_stopping_threshold", 0.01),
     )
 
 
