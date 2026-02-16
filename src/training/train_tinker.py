@@ -541,10 +541,15 @@ def _iter_training_batches(
     tokenizer: Any,
     tinker_module: ModuleType,
     batch_size: int,
-) -> Iterator[tuple[list[Any], int]]:
-    """Yield SDK-ready training batches with token counts from chat JSONL data."""
+) -> Iterator[tuple[list[Any], int, int]]:
+    """Yield SDK-ready training batches with token counts from chat JSONL data.
+
+    Returns (batch, total_tokens, completion_tokens) tuples.
+    completion_tokens = number of tokens with weight=1 (assistant response tokens).
+    """
     batch: list[Any] = []
     batch_tokens = 0
+    batch_completion_tokens = 0
 
     with open(train_file, encoding="utf-8") as f:
         for line_number, line in enumerate(f, start=1):
@@ -566,14 +571,16 @@ def _iter_training_batches(
             sdk_datum, token_count = _to_sdk_datum(local_datum, tinker_module)
             batch.append(sdk_datum)
             batch_tokens += token_count
+            batch_completion_tokens += sum(local_datum.loss_fn_inputs["weights"])
 
             if len(batch) >= batch_size:
-                yield batch, batch_tokens
+                yield batch, batch_tokens, batch_completion_tokens
                 batch = []
                 batch_tokens = 0
+                batch_completion_tokens = 0
 
     if batch:
-        yield batch, batch_tokens
+        yield batch, batch_tokens, batch_completion_tokens
 
 
 def _extract_loss(metrics: dict[str, float]) -> float | None:
@@ -596,23 +603,27 @@ def _run_validation(
     tinker_module: ModuleType,
     batch_size: int,
 ) -> tuple[float | None, int]:
-    """Run validation pass and return mean validation loss and batch count."""
+    """Run validation pass and return mean per-token validation loss and batch count."""
     if not valid_file.exists() or not hasattr(training_client, "forward"):
         return None, 0
 
-    losses: list[float] = []
+    total_loss = 0.0
+    total_completion_tokens = 0
     val_batches = 0
-    for batch, _ in _iter_training_batches(valid_file, tokenizer, tinker_module, batch_size):
+    for batch, _, completion_tokens in _iter_training_batches(
+        valid_file, tokenizer, tinker_module, batch_size
+    ):
         forward_result = training_client.forward(batch, "cross_entropy").result()
         metrics = getattr(forward_result, "metrics", {}) or {}
         val_loss = _extract_loss(metrics)
         if val_loss is not None:
-            losses.append(val_loss)
+            total_loss += val_loss
+            total_completion_tokens += completion_tokens
         val_batches += 1
 
-    if not losses:
+    if total_completion_tokens == 0:
         return None, val_batches
-    return sum(losses) / len(losses), val_batches
+    return total_loss / total_completion_tokens, val_batches
 
 
 def _check_early_stopping(
@@ -780,7 +791,7 @@ def _train_with_service_client_sdk(
 
     for epoch in range(start_epoch, config.epochs + 1):
         epoch_batch_index = 0
-        for batch, batch_tokens in _iter_training_batches(
+        for batch, batch_tokens, completion_tokens in _iter_training_batches(
             train_file,
             tokenizer,
             tinker,
@@ -803,8 +814,12 @@ def _train_with_service_client_sdk(
             current_step += 1
             metrics = getattr(fwdbwd, "metrics", {}) or {}
             step_loss = _extract_loss(metrics)
-            if step_loss is not None:
-                final_loss = step_loss
+            if step_loss is not None and completion_tokens > 0:
+                step_loss_per_token = step_loss / completion_tokens
+            else:
+                step_loss_per_token = step_loss
+            if step_loss_per_token is not None:
+                final_loss = step_loss_per_token
 
             if current_step % config.log_interval_steps == 0 or current_step == total_steps:
                 logger.info(
@@ -813,14 +828,14 @@ def _train_with_service_client_sdk(
                     config.epochs,
                     current_step,
                     total_steps,
-                    f"{step_loss:.4f}" if step_loss is not None else "n/a",
+                    f"{step_loss_per_token:.4f}" if step_loss_per_token is not None else "n/a",
                 )
 
-                if step_loss is not None:
+                if step_loss_per_token is not None:
                     _append_train_log_line(
                         train_log_path,
                         (
-                            f"Iter {current_step}: Train loss {step_loss:.4f} "
+                            f"Iter {current_step}: Train loss {step_loss_per_token:.4f} "
                             f"| Tokens/sec {tokens_per_sec:.1f} | Peak mem 0.0 GB"
                         ),
                     )
@@ -831,13 +846,15 @@ def _train_with_service_client_sdk(
                             "type": "train",
                             "step": current_step,
                             "epoch": epoch,
-                            "train_loss": step_loss,
+                            "train_loss": step_loss_per_token,
+                            "train_loss_total": step_loss,
+                            "completion_tokens": completion_tokens,
                             "tokens_per_sec": tokens_per_sec,
                         },
                     )
 
                 state["completed_steps"] = current_step
-                state["last_train_loss"] = step_loss
+                state["last_train_loss"] = step_loss_per_token
                 state["updated_at"] = _utc_now_iso()
                 _write_service_run_state(run_state_path, state)
 
