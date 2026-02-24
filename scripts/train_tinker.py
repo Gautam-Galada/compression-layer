@@ -113,54 +113,72 @@ Examples:
         help="Model to fine-tune (default: Qwen/Qwen3-8B)",
     )
 
-    # Training parameters
+    # Training parameters (None means use YAML config value)
     parser.add_argument(
         "--epochs",
         type=int,
-        default=3,
-        help="Number of training epochs (default: 3)",
+        default=None,
+        help="Number of training epochs (default: from config, typically 2)",
     )
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=4,
-        help="Batch size (default: 4)",
+        default=None,
+        help="Batch size (default: from config, typically 4)",
     )
     parser.add_argument(
         "--learning-rate",
         type=float,
-        default=2e-4,
-        help="Learning rate (default: 2e-4)",
+        default=None,
+        help="Learning rate (default: from config, typically 2e-4)",
     )
     parser.add_argument(
         "--lora-rank",
         type=int,
-        default=64,
-        help="LoRA rank (default: 64)",
+        default=None,
+        help="LoRA rank (default: from config, typically 16)",
     )
     parser.add_argument(
         "--lora-alpha",
         type=int,
-        default=128,
-        help="LoRA alpha (default: 128)",
+        default=None,
+        help="LoRA alpha (default: from config, typically 32)",
+    )
+    parser.add_argument(
+        "--lora-dropout",
+        type=float,
+        default=None,
+        help="LoRA dropout (default: from config, typically 0.05)",
     )
     parser.add_argument(
         "--log-interval-steps",
         type=int,
-        default=10,
-        help="How often to log train metrics (default: 10)",
+        default=None,
+        help="How often to log train metrics (default: from config, typically 10)",
     )
     parser.add_argument(
         "--checkpoint-interval-steps",
         type=int,
-        default=250,
-        help="How often to save resumable checkpoints (default: 250)",
+        default=None,
+        help="How often to save resumable checkpoints (default: from config, typically 250)",
     )
     parser.add_argument(
         "--eval-interval-steps",
         type=int,
-        default=0,
-        help="How often to run validation during an epoch (0 disables, default: 0)",
+        default=None,
+        help="How often to run validation during an epoch (default: from config, typically 250)",
+    )
+    parser.add_argument(
+        "--early-stopping-patience",
+        type=int,
+        default=None,
+        help="Stop after N evals without improvement; 0 disables (default: from config, typically 5)",
+    )
+    parser.add_argument(
+        "--early-stopping-threshold",
+        type=float,
+        default=None,
+        help="Min improvement to reset patience (default: from config, typically 0.01)",
     )
     parser.add_argument(
         "--no-eval-at-epoch-end",
@@ -241,11 +259,18 @@ def print_config(config: TinkerTrainingConfig) -> None:
     table.add_row("Learning Rate", f"{config.learning_rate:.0e}")
     table.add_row("LoRA Rank", str(config.lora.rank))
     table.add_row("LoRA Alpha", str(config.lora.alpha))
+    table.add_row("LoRA Dropout", str(config.lora.dropout))
     table.add_row("Log Interval", str(config.log_interval_steps))
     table.add_row("Checkpoint Every", str(config.checkpoint_interval_steps))
     table.add_row("Eval Every", str(config.eval_interval_steps))
     table.add_row("Eval Epoch End", str(config.eval_at_epoch_end))
     table.add_row("Auto Resume", str(config.resume_from_checkpoint))
+    # Early stopping
+    if config.early_stopping_patience > 0:
+        table.add_row("Early Stop Patience", str(config.early_stopping_patience))
+        table.add_row("Early Stop Threshold", str(config.early_stopping_threshold))
+    else:
+        table.add_row("Early Stopping", "Disabled")
 
     console.print(table)
 
@@ -269,22 +294,41 @@ def main() -> int:
     else:
         config = TinkerTrainingConfig()
 
-    # Override with CLI arguments
+    # Override with CLI arguments (only if explicitly provided)
     config.model = args.model
     config.dataset_path = args.data or settings.data_dir / "training"
     config.output_dir = args.output or settings.adapters_dir / "tinker"
-    config.epochs = args.epochs
-    config.batch_size = args.batch_size
-    config.learning_rate = args.learning_rate
-    config.lora = TinkerLoRAConfig(rank=args.lora_rank, alpha=args.lora_alpha)
     config.wait_for_completion = not args.no_wait
     config.dataset_name = args.dataset_name
-    config.log_interval_steps = args.log_interval_steps
-    config.checkpoint_interval_steps = args.checkpoint_interval_steps
-    config.eval_interval_steps = args.eval_interval_steps
     config.eval_at_epoch_end = not args.no_eval_at_epoch_end
     config.checkpoint_ttl_seconds = args.checkpoint_ttl_seconds
     config.resume_from_checkpoint = not args.no_resume
+
+    # Only override training params if explicitly provided via CLI
+    if args.epochs is not None:
+        config.epochs = args.epochs
+    if args.batch_size is not None:
+        config.batch_size = args.batch_size
+    if args.learning_rate is not None:
+        config.learning_rate = args.learning_rate
+    if args.log_interval_steps is not None:
+        config.log_interval_steps = args.log_interval_steps
+    if args.checkpoint_interval_steps is not None:
+        config.checkpoint_interval_steps = args.checkpoint_interval_steps
+    if args.eval_interval_steps is not None:
+        config.eval_interval_steps = args.eval_interval_steps
+    if args.early_stopping_patience is not None:
+        config.early_stopping_patience = args.early_stopping_patience
+    if args.early_stopping_threshold is not None:
+        config.early_stopping_threshold = args.early_stopping_threshold
+
+    # Handle LoRA config - only override if any LoRA arg is provided
+    if args.lora_rank is not None or args.lora_alpha is not None or args.lora_dropout is not None:
+        config.lora = TinkerLoRAConfig(
+            rank=args.lora_rank if args.lora_rank is not None else config.lora.rank,
+            alpha=args.lora_alpha if args.lora_alpha is not None else config.lora.alpha,
+            dropout=args.lora_dropout if args.lora_dropout is not None else config.lora.dropout,
+        )
 
     # Handle status check
     if args.status:

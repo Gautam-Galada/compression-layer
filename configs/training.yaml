@@ -70,7 +70,7 @@ cloud:
     max_seq_length: 2048
     log_interval_steps: 10
     checkpoint_interval_steps: 250
-    eval_interval_steps: 250        # Was 0 (disabled!); now eval every 250 steps
+    eval_interval_steps: 500        # Eval every 500 steps (~10 evals/epoch); balances speed vs signal
     eval_at_epoch_end: true
     checkpoint_ttl_seconds: null
     resume_from_checkpoint: true
