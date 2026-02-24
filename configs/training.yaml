@@ -44,6 +44,9 @@ local:
 # === CLOUD (Tinker) ===
 # For production training runs
 cloud:
+  backend: "tinker"                # "tinker" (cloud) or "local" (MLX on Mac)
+  hf_dataset: "Sudhendra/semantic-compression-sft"
+  local_model: "mlx-community/Qwen3-8B-4bit"  # used when backend=local
   model: "Qwen/Qwen3-8B"
   # Alternatives:
   #   - Qwen/Qwen3-4B-Instruct-2507 (faster, cheaper)

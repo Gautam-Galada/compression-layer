@@ -45,6 +45,15 @@ Override the model explicitly (optional):
 python scripts/train_local.py --train --model mlx-community/Qwen3-4B-Instruct-2507-8bit
 ```
 
+Run the Tinker workflow locally (same CLI flow, local backend):
+
+```bash
+python scripts/train_tinker.py \
+  --backend local \
+  --hf-dataset Sudhendra/semantic-compression-sft \
+  --output models/adapters/tinker
+```
+
 ## Evaluate the latest adapter
 
 If you trained with the default run storage, evaluation will use
@@ -58,6 +67,16 @@ To evaluate a specific run, pass the adapter path explicitly:
 
 ```bash
 python scripts/train_local.py --evaluate --adapter-path models/runs/mlx/<timestamp>/adapter
+```
+
+Evaluate with the Tinker evaluation workflow locally:
+
+```bash
+python scripts/evaluate_tinker.py \
+  --backend local \
+  --hf-dataset Sudhendra/semantic-compression-sft \
+  --adapter-path models/adapters/tinker \
+  --output models/eval/tinker_eval_local.jsonl
 ```
 
 ## Where outputs are stored

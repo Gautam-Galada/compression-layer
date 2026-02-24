@@ -37,6 +37,7 @@ from src.training import (
     TinkerLoRAConfig,
     TinkerTrainingConfig,
     estimate_cost,
+    materialize_hf_chat_dataset,
     train_on_tinker,
 )
 from src.training.train_tinker import load_config_from_yaml
@@ -111,6 +112,18 @@ Examples:
         type=str,
         default="Qwen/Qwen3-8B",
         help="Model to fine-tune (default: Qwen/Qwen3-8B)",
+    )
+    parser.add_argument(
+        "--backend",
+        choices=["tinker", "local"],
+        default=None,
+        help="Training backend: cloud Tinker or local MLX",
+    )
+    parser.add_argument(
+        "--local-model",
+        type=str,
+        default=None,
+        help="Local MLX model override when --backend local",
     )
 
     # Training parameters (None means use YAML config value)
@@ -209,6 +222,12 @@ Examples:
         default=None,
         help="Custom name for uploaded dataset",
     )
+    parser.add_argument(
+        "--hf-dataset",
+        type=str,
+        default=None,
+        help="Hugging Face dataset to materialize into train/valid/test JSONL",
+    )
 
     return parser.parse_args()
 
@@ -251,6 +270,9 @@ def print_config(config: TinkerTrainingConfig) -> None:
     table.add_column("Parameter", style="cyan")
     table.add_column("Value", style="green")
 
+    table.add_row("Backend", config.backend)
+    if config.backend == "local" and config.local_model:
+        table.add_row("Local Model", config.local_model)
     table.add_row("Model", config.model)
     table.add_row("Dataset Path", str(config.dataset_path))
     table.add_row("Output Path", str(config.output_dir))
@@ -281,13 +303,6 @@ def main() -> int:
 
     settings = get_settings()
 
-    # Check API key
-    if not settings.tinker_api_key:
-        console.print(
-            "[red]Error: TINKER_API_KEY not set.[/red]\nSet it in your .env file or environment."
-        )
-        return 1
-
     # Load config from YAML if provided
     if args.config and args.config.exists():
         config = load_config_from_yaml(args.config)
@@ -296,6 +311,12 @@ def main() -> int:
 
     # Override with CLI arguments (only if explicitly provided)
     config.model = args.model
+    if args.backend is not None:
+        config.backend = args.backend
+    if args.local_model is not None:
+        config.local_model = args.local_model
+    if args.hf_dataset is not None:
+        config.hf_dataset = args.hf_dataset
     config.dataset_path = args.data or settings.data_dir / "training"
     config.output_dir = args.output or settings.adapters_dir / "tinker"
     config.wait_for_completion = not args.no_wait
@@ -333,6 +354,20 @@ def main() -> int:
     # Handle status check
     if args.status:
         return check_status(args.status)
+
+    # Check API key only for cloud backend
+    if config.backend != "local" and not settings.tinker_api_key:
+        console.print(
+            "[red]Error: TINKER_API_KEY not set.[/red]\nSet it in your .env file or environment."
+        )
+        return 1
+
+    # Materialize training splits from Hugging Face dataset
+    try:
+        materialize_hf_chat_dataset(config.hf_dataset, config.dataset_path)
+    except Exception as e:
+        console.print(f"[red]Error materializing HF dataset: {e}[/red]")
+        return 1
 
     # Handle cost estimation
     if args.estimate_cost:

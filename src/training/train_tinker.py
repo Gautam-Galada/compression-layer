@@ -20,6 +20,8 @@ import json
 import logging
 import math
 import os
+import re
+import subprocess
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -31,6 +33,7 @@ from typing import Any
 import yaml
 
 from src.training.tinker_data import render_chat_example
+from src.training.train_mlx import check_mlx_available
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +62,16 @@ class TinkerLoRAConfig:
 class TinkerTrainingConfig:
     """Configuration for Tinker cloud training."""
 
+    # Backend
+    backend: str = "tinker"  # "tinker" for cloud, "local" for MLX on Mac
+    local_model: str | None = None
+
     # Model
     model: str = "Qwen/Qwen3-8B"
 
     # Data paths
     dataset_path: Path = field(default_factory=lambda: Path("data/training"))
+    hf_dataset: str = "Sudhendra/semantic-compression-sft"
     output_dir: Path = field(default_factory=lambda: Path("models/adapters/tinker"))
 
     # Dataset name for Tinker
@@ -98,7 +106,10 @@ class TinkerTrainingConfig:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API calls."""
         return {
+            "backend": self.backend,
+            "local_model": self.local_model,
             "model": self.model,
+            "hf_dataset": self.hf_dataset,
             "epochs": self.epochs,
             "batch_size": self.batch_size,
             "learning_rate": self.learning_rate,
@@ -383,6 +394,9 @@ def train_on_tinker(
     Returns:
         TinkerTrainingResult with success status and adapter path
     """
+    if config.backend == "local":
+        return _train_with_local_mlx_backend(config)
+
     client = TinkerClient(api_key=api_key)
 
     # Check availability
@@ -519,6 +533,242 @@ def _load_service_run_state(state_path: Path) -> dict[str, Any]:
     except json.JSONDecodeError:
         logger.warning("Unable to parse run state at %s; starting fresh", state_path)
         return {}
+
+
+def _resolve_local_model(config: TinkerTrainingConfig) -> str:
+    """Resolve local MLX model name for local backend execution."""
+    if config.local_model:
+        return config.local_model
+
+    model_map = {
+        "Qwen/Qwen3-8B": "mlx-community/Qwen3-8B-4bit",
+        "Qwen/Qwen3-4B-Instruct-2507": "mlx-community/Qwen3-4B-Instruct-2507-8bit",
+    }
+    return model_map.get(config.model, config.model)
+
+
+def _find_resume_adapter_path(output_dir: Path, state: dict[str, Any]) -> Path | None:
+    """Find resumable adapter file from run state or output directory."""
+    checkpoint = state.get("latest_checkpoint_path")
+    if isinstance(checkpoint, str) and checkpoint:
+        checkpoint_path = Path(checkpoint)
+        if checkpoint_path.exists() and checkpoint_path.is_file():
+            return checkpoint_path
+
+    adapter_files = sorted(output_dir.glob("*.safetensors"))
+    if adapter_files:
+        return adapter_files[-1]
+    return None
+
+
+def _extract_last_train_loss(log_path: Path) -> float | None:
+    """Extract final train loss from MLX train log if available."""
+    if not log_path.exists():
+        return None
+
+    loss_pattern = re.compile(r"loss\s+([0-9]+(?:\.[0-9]+)?)", re.IGNORECASE)
+    found: float | None = None
+    with open(log_path, encoding="utf-8") as f:
+        for line in f:
+            match = loss_pattern.search(line)
+            if match:
+                try:
+                    found = float(match.group(1))
+                except ValueError:
+                    continue
+    return found
+
+
+def _train_with_local_mlx_backend(config: TinkerTrainingConfig) -> TinkerTrainingResult:
+    """Run Tinker-like training workflow locally with MLX."""
+    if not check_mlx_available():
+        return TinkerTrainingResult(
+            success=False,
+            error="mlx_lm not available. Install with: pip install mlx-lm",
+        )
+
+    train_file = config.dataset_path / "train.jsonl"
+    if not train_file.exists():
+        return TinkerTrainingResult(
+            success=False,
+            error=f"Training file not found: {train_file}",
+        )
+
+    with open(train_file, encoding="utf-8") as f:
+        total_examples = sum(1 for line in f if line.strip())
+
+    if total_examples == 0:
+        return TinkerTrainingResult(
+            success=False,
+            error=f"No training examples found in {train_file}",
+        )
+
+    config.output_dir.mkdir(parents=True, exist_ok=True)
+    train_log_path = config.output_dir / "train.log"
+    train_err_path = config.output_dir / "train.err"
+    metrics_path = config.output_dir / "metrics.jsonl"
+    run_state_path = config.output_dir / "tinker_run.json"
+    run_json_path = config.output_dir / "run.json"
+    config_path = config.output_dir / "local_lora_config.yaml"
+
+    steps_per_epoch = math.ceil(total_examples / config.batch_size)
+    total_steps = steps_per_epoch * config.epochs
+
+    existing_state = _load_service_run_state(run_state_path)
+    resume_adapter = None
+    if config.resume_from_checkpoint:
+        resume_adapter = _find_resume_adapter_path(config.output_dir, existing_state)
+
+    local_model = _resolve_local_model(config)
+    yaml_config = {
+        "model": local_model,
+        "data": str(config.dataset_path),
+        "adapter_path": str(config.output_dir),
+        "batch_size": config.batch_size,
+        "iters": total_steps,
+        "learning_rate": config.learning_rate,
+        "steps_per_report": max(1, config.log_interval_steps),
+        "steps_per_eval": max(0, config.eval_interval_steps),
+        "save_every": max(1, config.checkpoint_interval_steps),
+        "lora_parameters": {
+            "rank": config.lora.rank,
+            "alpha": config.lora.alpha,
+            "dropout": config.lora.dropout,
+            "scale": config.lora.alpha / config.lora.rank,
+        },
+    }
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(yaml_config, f)
+
+    state: dict[str, Any] = {
+        "sdk_mode": "local_mlx",
+        "backend": "local",
+        "model": local_model,
+        "base_model": config.model,
+        "data_dir": str(config.dataset_path),
+        "epochs": config.epochs,
+        "batch_size": config.batch_size,
+        "learning_rate": config.learning_rate,
+        "lora_rank": config.lora.rank,
+        "lora_alpha": config.lora.alpha,
+        "total_examples": total_examples,
+        "steps_per_epoch": steps_per_epoch,
+        "total_steps": total_steps,
+        "completed_steps": 0,
+        "latest_checkpoint_path": str(resume_adapter) if resume_adapter else "",
+        "status": "running",
+        "started_at": str(existing_state.get("started_at", _utc_now_iso())),
+        "updated_at": _utc_now_iso(),
+    }
+    _write_service_run_state(run_state_path, state)
+
+    cmd = [
+        "python",
+        "-m",
+        "mlx_lm.lora",
+        "-c",
+        str(config_path),
+        "--model",
+        local_model,
+        "--train",
+        "--data",
+        str(config.dataset_path),
+        "--adapter-path",
+        str(config.output_dir),
+        "--batch-size",
+        str(config.batch_size),
+        "--iters",
+        str(total_steps),
+        "--learning-rate",
+        str(config.learning_rate),
+        "--steps-per-report",
+        str(max(1, config.log_interval_steps)),
+        "--steps-per-eval",
+        str(max(0, config.eval_interval_steps)),
+        "--save-every",
+        str(max(1, config.checkpoint_interval_steps)),
+        "--mask-prompt",
+    ]
+
+    if resume_adapter is not None:
+        cmd.extend(["--resume-adapter-file", str(resume_adapter)])
+
+    try:
+        with (
+            open(train_log_path, "w", encoding="utf-8") as train_log,
+            open(train_err_path, "w", encoding="utf-8") as train_err,
+        ):
+            result = subprocess.run(cmd, stdout=train_log, stderr=train_err, text=True)
+
+        if result.returncode != 0:
+            state["status"] = "failed"
+            state["updated_at"] = _utc_now_iso()
+            _write_service_run_state(run_state_path, state)
+            return TinkerTrainingResult(
+                success=False,
+                adapter_path=config.output_dir,
+                error=f"Local MLX training failed. See logs in {config.output_dir}",
+            )
+
+        adapter_files = sorted(config.output_dir.glob("*.safetensors"))
+        latest_adapter = adapter_files[-1] if adapter_files else None
+        final_loss = _extract_last_train_loss(train_log_path)
+
+        state["status"] = "completed"
+        state["completed_steps"] = total_steps
+        state["latest_checkpoint_path"] = str(latest_adapter) if latest_adapter else ""
+        state["final_loss"] = final_loss
+        state["updated_at"] = _utc_now_iso()
+        _write_service_run_state(run_state_path, state)
+
+        run_json = {
+            "started_at": state["started_at"],
+            "model": local_model,
+            "git_sha": os.environ.get("GITHUB_SHA", "unknown"),
+            "data_dir": str(config.dataset_path),
+            "lora_rank": config.lora.rank,
+            "lora_alpha": config.lora.alpha,
+            "batch_size": config.batch_size,
+            "learning_rate": config.learning_rate,
+            "iters": total_steps,
+        }
+        with open(run_json_path, "w", encoding="utf-8") as f:
+            json.dump(run_json, f, indent=2, ensure_ascii=False)
+
+        with open(metrics_path, "w", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "timestamp": _utc_now_iso(),
+                        "type": "train",
+                        "step": total_steps,
+                        "epoch": config.epochs,
+                        "train_loss": final_loss,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+
+        return TinkerTrainingResult(
+            success=True,
+            job_id=f"local-{int(time.time())}",
+            adapter_path=config.output_dir,
+            final_loss=final_loss,
+            total_epochs=config.epochs,
+            metrics={
+                "metadata_path": str(run_state_path),
+                "metrics_path": str(metrics_path),
+                "train_log_path": str(train_log_path),
+            },
+        )
+
+    except Exception as e:
+        logger.exception("Local MLX backend training failed")
+        state["status"] = "failed"
+        state["updated_at"] = _utc_now_iso()
+        _write_service_run_state(run_state_path, state)
+        return TinkerTrainingResult(success=False, adapter_path=config.output_dir, error=str(e))
 
 
 def _to_sdk_datum(local_datum: Any, tinker_module: ModuleType) -> tuple[Any, int]:
@@ -1065,7 +1315,10 @@ def load_config_from_yaml(config_path: Path) -> TinkerTrainingConfig:
     training_config = cloud_config.get("training", {})
 
     return TinkerTrainingConfig(
+        backend=cloud_config.get("backend", "tinker"),
+        local_model=cloud_config.get("local_model", None),
         model=cloud_config.get("model", "Qwen/Qwen3-8B"),
+        hf_dataset=cloud_config.get("hf_dataset", "Sudhendra/semantic-compression-sft"),
         lora=TinkerLoRAConfig(
             rank=lora_config.get("rank", 16),
             alpha=lora_config.get("alpha", 32),

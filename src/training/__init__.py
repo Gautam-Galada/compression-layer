@@ -20,6 +20,7 @@ from .format_data import (
     write_completions_jsonl,
     write_text_jsonl,
 )
+from .hf_dataset_loader import materialize_hf_chat_dataset
 from .run_storage import create_run_dir
 from .tinker_sdk import TinkerSDKClient
 from .train_mlx import (
@@ -54,6 +55,7 @@ __all__ = [
     "write_chat_jsonl",
     "write_completions_jsonl",
     "write_text_jsonl",
+    "materialize_hf_chat_dataset",
     # MLX training
     "MLXTrainingConfig",
     "TrainingResult",

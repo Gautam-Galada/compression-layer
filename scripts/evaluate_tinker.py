@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from rich.console import Console
 from rich.table import Table
 
+from src.training import materialize_hf_chat_dataset
 from src.utils.config import get_settings
 
 console = Console()
@@ -292,10 +293,10 @@ def create_tinker_generator(checkpoint_path: str, api_key: str, verbose: bool = 
             output_token_ids = sample_result.sequences[0].tokens
             raw_output = tokenizer.decode(output_token_ids)
         elif getattr(sample_result, "samples", None):
-            output_token_ids = getattr(sample_result, "samples")[0].to_ints()
+            output_token_ids = sample_result.samples[0].to_ints()
             raw_output = tokenizer.decode(output_token_ids)
         elif getattr(sample_result, "text", None):
-            raw_output = getattr(sample_result, "text")
+            raw_output = sample_result.text
         else:
             # Fallback: try to decode directly
             raw_output = str(sample_result)
@@ -312,6 +313,59 @@ def create_tinker_generator(checkpoint_path: str, api_key: str, verbose: bool = 
         output_text = _cap_output_length(output_text, input_text)
 
         # Count output tokens
+        output_tokens = len(tokenizer.encode(output_text, add_special_tokens=False))
+
+        return output_text, input_tokens, output_tokens
+
+    return generate
+
+
+def create_local_generator(model: str, adapter_path: Path, verbose: bool = False):
+    """Create a generator function using local MLX model + adapter."""
+    import mlx_lm
+    from mlx_lm.sample_utils import make_sampler
+
+    console.print(f"[cyan]Loading local model: {model}[/cyan]")
+    console.print(f"[cyan]Using adapter path: {adapter_path}[/cyan]")
+
+    loaded = mlx_lm.load(model, adapter_path=str(adapter_path))
+    mlx_model, tokenizer = loaded[:2]
+    sampler = make_sampler(temp=0.0)
+
+    console.print("[green]Local sampling ready[/green]\n")
+
+    def generate(
+        input_text: str, system_prompt: str, max_tokens: int = 512
+    ) -> tuple[str, int, int]:
+        """Generate compressed output locally. Returns (output, input_tokens, output_tokens)."""
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": _build_user_message(input_text)})
+
+        prompt_str = tokenizer.apply_chat_template(
+            messages, add_generation_prompt=True, tokenize=False
+        )
+        input_token_ids = tokenizer.encode(prompt_str)
+        input_tokens = len(input_token_ids)
+        max_generation_tokens = _compute_generation_budget(input_tokens, max_tokens)
+
+        raw_output = mlx_lm.generate(
+            model=mlx_model,
+            tokenizer=tokenizer,
+            prompt=prompt_str,
+            max_tokens=max_generation_tokens,
+            sampler=sampler,
+        )
+
+        if verbose:
+            console.print(
+                f"[dim]RAW OUTPUT ({len(raw_output)} chars): {repr(raw_output[:300])}...[/dim]"
+            )
+
+        output_text = _strip_generation_artifacts(raw_output.strip())
+        output_text = _truncate_repetition(output_text)
+        output_text = _cap_output_length(output_text, input_text)
         output_tokens = len(tokenizer.encode(output_text, add_special_tokens=False))
 
         return output_text, input_tokens, output_tokens
@@ -416,7 +470,7 @@ def print_examples(results: list[EvalResult], n: int = 3) -> None:
         )
         console.print(f"[green]{result.generated_output}[/green]")
         console.print()
-        console.print(f"[dim]Expected:[/dim]")
+        console.print("[dim]Expected:[/dim]")
         console.print(f"[yellow]{result.expected_output}[/yellow]")
         console.print("-" * 60)
         console.print()
@@ -424,6 +478,31 @@ def print_examples(results: list[EvalResult], n: int = 3) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate Tinker-trained compression adapter")
+
+    parser.add_argument(
+        "--backend",
+        choices=["tinker", "local"],
+        default="tinker",
+        help="Evaluation backend: cloud Tinker or local MLX",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="mlx-community/Qwen3-4B-Instruct-2507-8bit",
+        help="Local MLX base model (used with --backend local)",
+    )
+    parser.add_argument(
+        "--adapter-path",
+        type=Path,
+        default=None,
+        help="Local adapter path (default: models/adapters/tinker)",
+    )
+    parser.add_argument(
+        "--hf-dataset",
+        type=str,
+        default="Sudhendra/semantic-compression-sft",
+        help="Hugging Face dataset to materialize into train/valid/test JSONL",
+    )
 
     parser.add_argument(
         "--checkpoint-path",
@@ -474,36 +553,46 @@ def main() -> int:
     args = parse_args()
     settings = get_settings()
 
-    # Check API key
-    if not settings.tinker_api_key:
-        console.print("[red]Error: TINKER_API_KEY not set[/red]")
+    # Materialize dataset from HF before loading test split
+    dataset_dir = args.data.parent
+    try:
+        materialize_hf_chat_dataset(args.hf_dataset, dataset_dir)
+    except Exception as e:
+        console.print(f"[red]Error materializing HF dataset: {e}[/red]")
         return 1
 
-    # Get checkpoint path
-    checkpoint_path = args.checkpoint_path
-    if not checkpoint_path:
-        # Load from tinker_run.json
-        run_state_path = settings.adapters_dir / "tinker" / "tinker_run.json"
-        if not run_state_path.exists():
-            console.print(f"[red]No training run found at {run_state_path}[/red]")
+    test_data_path = dataset_dir / "test.jsonl"
+
+    checkpoint_path: str | None = None
+    if args.backend == "tinker":
+        if not settings.tinker_api_key:
+            console.print("[red]Error: TINKER_API_KEY not set[/red]")
             return 1
 
-        with open(run_state_path, encoding="utf-8") as f:
-            run_state = json.load(f)
-
-        checkpoint_path = run_state.get("latest_checkpoint_path")
+        checkpoint_path = args.checkpoint_path
         if not checkpoint_path:
-            console.print("[red]No checkpoint path in tinker_run.json[/red]")
-            return 1
+            # Load from tinker_run.json
+            run_state_path = settings.adapters_dir / "tinker" / "tinker_run.json"
+            if not run_state_path.exists():
+                console.print(f"[red]No training run found at {run_state_path}[/red]")
+                return 1
 
-        console.print(f"[dim]Using checkpoint from training run: {checkpoint_path}[/dim]")
+            with open(run_state_path, encoding="utf-8") as f:
+                run_state = json.load(f)
+
+            checkpoint_path = run_state.get("latest_checkpoint_path")
+            if not checkpoint_path:
+                console.print("[red]No checkpoint path in tinker_run.json[/red]")
+                return 1
+
+            console.print(f"[dim]Using checkpoint from training run: {checkpoint_path}[/dim]")
 
     # Load test examples
-    if not args.data.exists():
-        console.print(f"[red]Test data not found: {args.data}[/red]")
+    if not test_data_path.exists():
+        console.print(f"[red]Test data not found: {test_data_path}[/red]")
         return 1
 
-    examples = load_test_examples(args.data, limit=args.limit)
+    examples = load_test_examples(test_data_path, limit=args.limit)
     if not examples:
         console.print("[red]No test examples loaded[/red]")
         return 1
@@ -536,9 +625,16 @@ def main() -> int:
 
     # Create generator
     try:
-        generator = create_tinker_generator(
-            checkpoint_path, settings.tinker_api_key, verbose=args.verbose
-        )
+        if args.backend == "local":
+            adapter_path = args.adapter_path or (settings.adapters_dir / "tinker")
+            generator = create_local_generator(args.model, adapter_path, verbose=args.verbose)
+        else:
+            if checkpoint_path is None:
+                console.print("[red]Missing checkpoint path for Tinker backend[/red]")
+                return 1
+            generator = create_tinker_generator(
+                checkpoint_path, settings.tinker_api_key, verbose=args.verbose
+            )
     except Exception as e:
         console.print(f"[red]Failed to create generator: {e}[/red]")
         return 1

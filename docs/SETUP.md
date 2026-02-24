@@ -250,6 +250,12 @@ python scripts/train_local.py --train
 # Cloud training (production)
 python scripts/train_tinker.py --config configs/training.yaml --output models/adapters/tinker
 
+# Same Tinker workflow, local backend on Mac
+python scripts/train_tinker.py --backend local --hf-dataset Sudhendra/semantic-compression-sft --output models/adapters/tinker
+
+# Same Tinker eval workflow, local backend on Mac
+python scripts/evaluate_tinker.py --backend local --hf-dataset Sudhendra/semantic-compression-sft --adapter-path models/adapters/tinker --output models/eval/tinker_eval_local.jsonl
+
 # Post-training MLflow logging
 python scripts/mlflow_logger.py --experiment-name "compression-v2" --dagshub-owner Sudhendra
 
