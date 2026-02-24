@@ -135,7 +135,7 @@ def test_local_backend_does_not_require_tinker_api_key(tmp_path: Path, monkeypat
     monkeypatch.setattr(
         evaluate_tinker,
         "create_local_generator",
-        lambda *_args, **_kwargs: (lambda *_a, **_k: ("h", 10, 3)),
+        lambda *_args, **_kwargs: lambda *_a, **_k: ("h", 10, 3),
     )
     monkeypatch.setattr(
         evaluate_tinker,
