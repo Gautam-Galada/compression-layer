@@ -234,6 +234,10 @@ class LLMJudge:
         if clean_response.startswith("json"):
             clean_response = clean_response[4:].strip()
 
+        # Some providers occasionally return JSON with trailing commas.
+        # Repair these before parsing to avoid unnecessary retries.
+        clean_response = self._strip_trailing_commas(clean_response)
+
         # Parse JSON
         data = json.loads(clean_response)
 
@@ -253,6 +257,47 @@ class LLMJudge:
             missing_from_compressed=list(data.get("missing_from_compressed", [])),
             missing_from_verbose=list(data.get("missing_from_verbose", [])),
         )
+
+    @staticmethod
+    def _strip_trailing_commas(text: str) -> str:
+        """Remove trailing commas before JSON object/array closers."""
+        out: list[str] = []
+        in_string = False
+        escaped = False
+
+        i = 0
+        while i < len(text):
+            ch = text[i]
+
+            if in_string:
+                out.append(ch)
+                if escaped:
+                    escaped = False
+                elif ch == "\\":
+                    escaped = True
+                elif ch == '"':
+                    in_string = False
+                i += 1
+                continue
+
+            if ch == '"':
+                in_string = True
+                out.append(ch)
+                i += 1
+                continue
+
+            if ch == ",":
+                j = i + 1
+                while j < len(text) and text[j].isspace():
+                    j += 1
+                if j < len(text) and text[j] in "}]":
+                    i += 1
+                    continue
+
+            out.append(ch)
+            i += 1
+
+        return "".join(out)
 
     def verdict_to_score(self, result: JudgeResult) -> float:
         """
