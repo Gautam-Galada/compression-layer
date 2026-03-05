@@ -75,7 +75,7 @@ def test_main_local_backend_uses_hf_loader_and_local_generator(tmp_path: Path, m
                 generated_output="h",
                 input_tokens=10,
                 output_tokens=3,
-                compression_ratio=0.1,
+                token_ratio=0.3,
                 generation_time_ms=5.0,
             )
         ],
@@ -147,7 +147,7 @@ def test_local_backend_does_not_require_tinker_api_key(tmp_path: Path, monkeypat
                 generated_output="h",
                 input_tokens=10,
                 output_tokens=3,
-                compression_ratio=0.1,
+                token_ratio=0.3,
                 generation_time_ms=5.0,
             )
         ],

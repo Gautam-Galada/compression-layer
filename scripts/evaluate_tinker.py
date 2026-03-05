@@ -54,7 +54,7 @@ class EvalResult:
     generated_output: str
     input_tokens: int
     output_tokens: int
-    compression_ratio: float
+    token_ratio: float
     generation_time_ms: float
 
 
@@ -71,6 +71,14 @@ def _load_existing_results(path: Path) -> list[EvalResult]:
                 continue
             try:
                 record = json.loads(stripped)
+                if "token_ratio" not in record:
+                    input_tokens = record.get("input_tokens", 0)
+                    output_tokens = record.get("output_tokens", 0)
+                    if input_tokens:
+                        record["token_ratio"] = output_tokens / input_tokens
+                    elif "compression_ratio" in record:
+                        record["token_ratio"] = record["compression_ratio"]
+                record.pop("compression_ratio", None)
                 loaded.append(EvalResult(**record))
             except Exception:
                 logger.warning(
@@ -395,8 +403,7 @@ def run_evaluation(
         )
         elapsed_ms = (time.perf_counter() - start) * 1000
 
-        # Calculate compression ratio (output chars / input chars)
-        compression_ratio = len(generated) / len(example.input_text) if example.input_text else 0
+        token_ratio = output_tokens / input_tokens if input_tokens else 0
 
         result = EvalResult(
             input_text=example.input_text,
@@ -404,7 +411,7 @@ def run_evaluation(
             generated_output=generated,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            compression_ratio=compression_ratio,
+            token_ratio=token_ratio,
             generation_time_ms=elapsed_ms,
         )
         results.append(result)
@@ -415,7 +422,7 @@ def run_evaluation(
             preview += "..."
         console.print(
             f"[{i}/{total}] "
-            f"ratio={compression_ratio:.1%} "
+            f"ratio={token_ratio:.1%} "
             f"in={input_tokens} out={output_tokens} "
             f"time={elapsed_ms:.0f}ms "
             f"[dim]{preview}[/dim]"
@@ -435,19 +442,17 @@ def print_summary(results: list[EvalResult]) -> None:
         console.print("[red]No results to summarize[/red]")
         return
 
-    avg_ratio = sum(r.compression_ratio for r in results) / len(results)
+    avg_token_ratio = sum(r.token_ratio for r in results) / len(results)
     avg_time = sum(r.generation_time_ms for r in results) / len(results)
     avg_input_tokens = sum(r.input_tokens for r in results) / len(results)
     avg_output_tokens = sum(r.output_tokens for r in results) / len(results)
-    token_ratio = avg_output_tokens / avg_input_tokens if avg_input_tokens else 0
 
     table = Table(title="Evaluation Summary")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
 
     table.add_row("Examples evaluated", str(len(results)))
-    table.add_row("Avg compression ratio (chars)", f"{avg_ratio:.1%}")
-    table.add_row("Avg token ratio (out/in)", f"{token_ratio:.1%}")
+    table.add_row("Avg token ratio (out/in)", f"{avg_token_ratio:.1%}")
     table.add_row("Avg input tokens", f"{avg_input_tokens:.1f}")
     table.add_row("Avg output tokens", f"{avg_output_tokens:.1f}")
     table.add_row("Avg generation time", f"{avg_time:.0f} ms")
@@ -466,7 +471,8 @@ def print_examples(results: list[EvalResult], n: int = 3) -> None:
         console.print(result.input_text[:200] + ("..." if len(result.input_text) > 200 else ""))
         console.print()
         console.print(
-            f"[dim]Generated ({len(result.generated_output)} chars, {result.compression_ratio:.1%}):[/dim]"
+            "[dim]Generated "
+            f"({result.output_tokens} tokens, {result.token_ratio:.1%} out/in):[/dim]"
         )
         console.print(f"[green]{result.generated_output}[/green]")
         console.print()

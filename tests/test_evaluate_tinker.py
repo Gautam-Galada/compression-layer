@@ -1,10 +1,12 @@
 from scripts.evaluate_tinker import (
+    EvalExample,
     _build_user_message,
     _cap_output_length,
     _compute_generation_budget,
     _load_existing_results,
     _strip_generation_artifacts,
     _truncate_repetition,
+    run_evaluation,
 )
 
 
@@ -61,3 +63,17 @@ def test_load_existing_results_stops_at_partial_row(tmp_path) -> None:
     loaded = _load_existing_results(path)
     assert len(loaded) == 1
     assert loaded[0].input_text == "a"
+
+
+def test_run_evaluation_uses_token_ratio_not_char_ratio() -> None:
+    examples = [
+        EvalExample(input_text="hello world", expected_output="x", system_prompt=""),
+    ]
+
+    def fake_generator(_input_text: str, _system_prompt: str):
+        return "abc", 10, 3
+
+    results = run_evaluation(examples, fake_generator)
+
+    assert len(results) == 1
+    assert results[0].token_ratio == 0.3
