@@ -33,6 +33,7 @@ memory):
 - `models/runs/mlx/latest/run.json`
 - `models/runs/mlx/latest/train.log`
 - `models/adapters/tinker/tinker_run.json`
+- `models/eval/ratio_nanbeige_iter500.jsonl`
 - `models/eval/tinker_eval_tightened_full.jsonl`
 - `models/eval/tinker_equiv_tightened_full_llm_judge.jsonl`
 
@@ -46,6 +47,18 @@ From `models/runs/mlx/latest/run.json` and `models/runs/mlx/latest/train.log`:
 | LoRA | rank `8`, alpha `16`, layers `16` |
 | Train config | `500` iters, batch size `4`, lr `1e-4` |
 | Final val loss (iter 500) | `0.510` |
+
+### Local Nanbeige eval (MLX)
+
+From `models/eval/ratio_nanbeige_iter500.jsonl`:
+
+| Metric | Value |
+| --- | --- |
+| Examples evaluated | `2,497` |
+| Avg token ratio (out/in) | `34.8%` |
+| Avg input tokens | `276.3` |
+| Avg output tokens | `103.2` |
+| Avg generation time | `3037 ms` |
 
 ### Cloud 8B run (Tinker)
 
