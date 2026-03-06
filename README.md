@@ -53,6 +53,14 @@ which perform fact-extraction tasks. The outputs are compared through three gate
 A sample **passes** only when the minimum score across all three models exceeds
 the threshold on **every active gate**.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/equivalence-eval-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/equivalence-eval-light.svg">
+    <img alt="Equivalence Evaluation: 3-Gate Scoring — Compression pair → Frontier model (Claude/GPT/Gemini) fact extraction → 3-gate comparison (embedding, fact overlap, LLM judge) → per-model aggregation → final pass/fail verdict" src="assets/equivalence-eval-light.svg" width="100%">
+  </picture>
+</p>
+
 | Model | Sample (seed 42) | Pass Rate | Avg Min-Equiv | Median Min-Equiv |
 | :--- | ---: | ---: | ---: | ---: |
 | Qwen3-8B (step 4500) | 300 | **2.0%** | 0.390 | 0.413 |
