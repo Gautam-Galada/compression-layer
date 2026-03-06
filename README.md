@@ -71,6 +71,14 @@ the threshold on **every active gate**.
 
 Without the LLM judge (gates 1+2 only), the pass rate would be **24.0%**.
 
+**Per-model avg scores** (across 300 samples):
+
+| Model | Embedding | Fact Overlap | LLM Judge |
+| :--- | ---: | ---: | ---: |
+| Claude Sonnet | 0.783 | 0.539 | 0.572 |
+| GPT-4o-mini | 0.795 | 0.525 | 0.607 |
+| Gemini Flash | 0.768 | 0.542 | 0.574 |
+
 **Per-domain results** (3-gate, all models):
 
 | Domain | n | Pass Rate | Avg Min-Equiv | Median Min-Equiv |
