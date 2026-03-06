@@ -64,7 +64,7 @@ the threshold on **every active gate**.
 | Model | Sample (seed 42) | Pass Rate | Avg Min-Equiv | Median Min-Equiv |
 | :--- | ---: | ---: | ---: | ---: |
 | Qwen3-8B (step 4500) | 300 | **2.0%** | 0.390 | 0.413 |
-| Nanbeige 3B (iter 500) | 300 | — | — | — |
+| Nanbeige 3B (iter 500) | 300 | **1.3%** | 0.402 | 0.434 |
 
 <details>
 <summary>Qwen3-8B gate-level breakdown</summary>
@@ -97,7 +97,38 @@ Without the LLM judge (gates 1+2 only), the pass rate would be **24.0%**.
 
 </details>
 
-> Nanbeige row is pending evaluation. Samples are domain-stratified
+<details>
+<summary>Nanbeige 3B gate-level breakdown</summary>
+
+**Gate failure rates** (how often each gate was the bottleneck):
+
+| Gate | Fail Rate | Avg Score |
+| :--- | ---: | ---: |
+| Embedding (>= 0.60) | 12.7% | 0.804 |
+| Fact overlap (>= 0.55) | 74.0% | 0.556 |
+| LLM judge (>= 0.75) | 97.0% | 0.596 |
+
+Without the LLM judge (gates 1+2 only), the pass rate would be **25.7%**.
+
+**Per-model avg scores** (across 300 samples):
+
+| Model | Embedding | Fact Overlap | LLM Judge |
+| :--- | ---: | ---: | ---: |
+| Claude Sonnet | 0.805 | 0.553 | 0.594 |
+| GPT-4o-mini | 0.817 | 0.548 | 0.618 |
+| Gemini Flash | 0.790 | 0.566 | 0.577 |
+
+**Per-domain results** (3-gate, all models):
+
+| Domain | n | Pass Rate | Avg Min-Equiv | Median Min-Equiv |
+| :--- | ---: | ---: | ---: | ---: |
+| NL | 95 | 3.2% | 0.346 | 0.350 |
+| Mixed | 171 | 0.6% | 0.419 | 0.444 |
+| Code | 34 | 0.0% | 0.476 | 0.456 |
+
+</details>
+
+> Samples are domain-stratified
 > (95 NL / 171 mixed / 34 code) to match the test set distribution.
 
 <details>
