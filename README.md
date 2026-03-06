@@ -1,230 +1,154 @@
-# LLM Compression Layer
+# Semantic Compression
 
-Universal semantic compression layer for LLM inputs. Compresses memories, code,
-and context before API calls while preserving reasoning equivalence across
-Claude, GPT, and Gemini.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Dataset on HF](https://img.shields.io/badge/HuggingFace-Dataset-yellow.svg)](https://huggingface.co/datasets/Sudhendra/semantic-compression-sft)
 
-## Quick Start
+**Can we fine-tune small LLMs to compress context while preserving semantic equivalence across models?**
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-pytest tests/ -v
-```
+This project trains LoRA adapters on small (3B–8B) language models to rewrite
+verbose LLM context into compressed representations that produce equivalent
+reasoning outputs from Claude, GPT, and Gemini — reducing token usage while
+maintaining answer quality.
 
-## Environment Variables
+> **Read the full write-up:** [Semantic Compression — Research Overview](https://x.com/wthagi/status/2028228181212451286)
 
-Create a `.env` file with:
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/pipeline-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/pipeline-light.svg">
+    <img alt="Pipeline: Raw Corpora → Synthetic Generation → Preprocessing → SFT Training → Compression Eval → Equivalence Eval" src="assets/pipeline-light.svg" width="100%">
+  </picture>
+</p>
 
-```bash
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
-GOOGLE_API_KEY=...
-HF_TOKEN=hf_...
-TINKER_API_KEY=tk_...
-```
+---
 
-## Ground-Truth Run Snapshot (from local artifacts)
+## Key Results
 
-These metrics are taken directly from run/eval artifacts in this repo (not from
-memory):
+Summary of trained adapter evaluations on the full test set (2,497 examples from
+[`Sudhendra/semantic-compression-sft`](https://huggingface.co/datasets/Sudhendra/semantic-compression-sft)):
 
-- `models/runs/mlx/latest/run.json`
-- `models/runs/mlx/latest/train.log`
-- `models/adapters/tinker/tinker_run.json`
-- `models/eval/ratio_nanbeige_iter500.jsonl`
-- `models/eval/tinker_eval_tightened_full.jsonl`
-- `models/eval/tinker_equiv_tightened_full_llm_judge.jsonl`
+### Compression (Token Ratio)
 
-### Local 4B run (MLX)
+| Model | Params | Backend | LoRA Config | Avg Token Ratio | Avg Input Tokens | Avg Output Tokens |
+| :--- | ---: | :--- | :--- | ---: | ---: | ---: |
+| Nanbeige4.1-3B (8-bit) | 3B | MLX (local) | rank 8, lr 1e-4, 500 iters | **34.8%** | 276.3 | 103.2 |
+| Nanbeige4.1-3B (8-bit) | 3B | MLX (local) | rank 16, lr 5e-5, 1000 iters | **34.8%** | 276.3 | 96.2 |
+| Qwen3-8B | 8B | Tinker (cloud) | rank 16, lr 2e-4, 4962 steps | _eval in progress_ | — | — |
 
-From `models/runs/mlx/latest/run.json` and `models/runs/mlx/latest/train.log`:
+> **Token ratio** = `output_tokens / input_tokens`. Lower is better. A ratio of 34.8% means
+> the compressed output uses ~35% of the original token count.
 
-| Metric | Value |
-| --- | --- |
-| Model | `mlx-community/Qwen3-4B-Instruct-2507-8bit` |
-| LoRA | rank `8`, alpha `16`, layers `16` |
-| Train config | `500` iters, batch size `4`, lr `1e-4` |
-| Final val loss (iter 500) | `0.510` |
+### Equivalence (Cross-Model Judge)
 
-### Local Nanbeige eval (MLX)
+| Model | Judge Models | Evaluated | Pass Rate (threshold 0.80) | Avg Min-Equiv |
+| :--- | :--- | ---: | ---: | ---: |
+| Qwen3-8B | Claude Sonnet, GPT-4o-mini, Gemini 2.0 Flash | 1,753 | 21.11% | 0.6791 |
 
-From `models/eval/ratio_nanbeige_iter500.jsonl`:
-
-| Metric | Value |
-| --- | --- |
-| Examples evaluated | `2,497` |
-| Avg token ratio (out/in) | `34.8%` |
-| Avg input tokens | `276.3` |
-| Avg output tokens | `103.2` |
-| Avg generation time | `3037 ms` |
-
-### Cloud 8B run (Tinker)
-
-From `models/adapters/tinker/tinker_run.json`:
-
-| Metric | Value |
-| --- | --- |
-| Run ID | `161b1f39-3e50-53c0-9d75-f5ce804db7eb:train:0` |
-| Model | `Qwen/Qwen3-8B` |
-| Train examples | `19,845` |
-| LoRA | rank `16`, alpha `32`, dropout `0.05` |
-| Train config | epochs `2`, batch size `4`, lr `2e-4` |
-| Status | completed, early stopped at step `4962` (planned total `9924`) |
-| Best val loss | `0.2657` |
-| Final loss | `0.2845` |
-| Latest checkpoint | `tinker://.../weights/final` |
-
-### 8B evaluation results
-
-Source files:
-
-- Compression: `models/eval/tinker_eval_tightened_full.jsonl`
-- Equivalence: `models/eval/tinker_equiv_tightened_full_llm_judge.jsonl`
-
-### Compression Results (8B, full test set)
-
-| Run | Split Size | Evaluated | Avg Compression Ratio | Avg Token Reduction | Median Compression Ratio |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Tinker Qwen3-8B tightened eval | 2,497 | 2,497 | 0.5207 | 47.93% | 0.5847 |
-
-### Equivalence Results (8B, current progress)
-
-| Run | Threshold | Judge | Models | Evaluated | Coverage | Pass Rate | Avg Min-Equiv | Median Min-Equiv | Min Min-Equiv |
-| --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Tinker Qwen3-8B tightened equiv | 0.80 | On (`--use-llm-judge`) | Claude Sonnet + GPT-4o-mini + Gemini 2.0 Flash | 1,753 | 70.20% (1,753/2,497) | 21.11% | 0.6791 | 0.7102 | 0.1538 |
-
-### Equivalence Model Breakdown
+<details>
+<summary>Equivalence breakdown by judge model</summary>
 
 | Model | Combined Avg | Combined Min | Judge-Only Avg | Judge-Only Min |
-| --- | ---: | ---: | ---: | ---: |
+| :--- | ---: | ---: | ---: | ---: |
 | `claude-sonnet-4-20250514` | 0.7868 | 0.1842 | 0.7784 | 0.2500 |
 | `gpt-4o-mini` | 0.7911 | 0.1538 | 0.7777 | 0.2500 |
 | `gemini-2.0-flash` | 0.7092 | 0.1682 | 0.6968 | 0.2562 |
 
-## Local Tinker-Style 4B Training (MLX backend)
+</details>
 
-This uses the same `train_tinker.py` workflow but runs locally on MLX.
+<details>
+<summary>Training run details</summary>
+
+**Nanbeige 3B — 500 iterations (MLX)**
+- Model: `mlx-community/Nanbeige4.1-3B-8bit`
+- LoRA: rank 8, alpha 16, 16 layers
+- Config: 500 iters, batch size 4, lr 1e-4
+- Eval artifact: `models/eval/ratio_nanbeige_iter500.jsonl`
+
+**Nanbeige 3B — 1000 iterations (MLX)**
+- Model: `mlx-community/Nanbeige4.1-3B-8bit`
+- LoRA: rank 16, alpha 32, 16 layers
+- Config: 1000 iters, batch size 4, lr 5e-5
+- Eval artifact: `models/eval/ratio_nanbeige_iter1000.jsonl`
+
+**Qwen3-8B (Tinker cloud)**
+- Model: `Qwen/Qwen3-8B`
+- LoRA: rank 16, alpha 32, dropout 0.05
+- Config: 2 epochs, batch size 4, lr 2e-4
+- Status: completed, early-stopped at step 4962 (planned 9924)
+- Best checkpoint: step 4500 (val_loss = 0.2579)
+- Train examples: 19,845
+
+</details>
+
+---
+
+## Quick Start
 
 ```bash
-source .venv/bin/activate
+# Clone and setup
+git clone https://github.com/Sudhendra/compression-layer.git
+cd compression-layer
 
-python scripts/train_tinker.py \
-  --backend local \
-  --model Qwen/Qwen3-4B-Instruct-2507 \
-  --local-model mlx-community/Qwen3-4B-Instruct-2507-8bit \
-  --hf-dataset Sudhendra/semantic-compression-sft \
-  --output models/adapters/tinker_local_4b
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# Copy and configure environment variables
+cp .env.example .env
+# Edit .env with your API keys
+
+# Run tests
+pytest tests/ -v
 ```
 
-Evaluate that local run with the same eval workflow:
+### Environment Variables
+
+Create a `.env` file (see `.env.example`):
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...   # For Claude equivalence eval
+OPENAI_API_KEY=sk-...          # For GPT equivalence eval
+GOOGLE_API_KEY=...             # For Gemini equivalence eval
+HF_TOKEN=hf_...               # For HuggingFace dataset access
+TINKER_API_KEY=tk_...          # For Tinker cloud training/inference
+```
+
+---
+
+## Reproduce Evaluation
+
+### 1. Compression Eval (Token Ratio)
+
+Measures how much the adapter compresses input tokens.
+
+**Local MLX backend** (for Nanbeige / local models):
 
 ```bash
 python scripts/evaluate_tinker.py \
   --backend local \
-  --model mlx-community/Qwen3-4B-Instruct-2507-8bit \
-  --adapter-path models/adapters/tinker_local_4b \
+  --model mlx-community/Nanbeige4.1-3B-8bit \
+  --adapter-path models/runs/mlx/2026-03-01_20-53-41--iter-500/adapter \
   --hf-dataset Sudhendra/semantic-compression-sft \
-  --output models/eval/tinker4b_local_eval.jsonl
-```
-
-## Data Bootstrapping: Generate -> Clean -> Format -> Sanitize
-
-### 1) Generate synthetic pairs with local adapter
-
-```bash
-python scripts/generate_synthetic.py \
-  --input data/raw/code.jsonl \
-  --domain code \
-  --adapter models/runs/mlx/latest/adapter \
-  --output data/synthetic/code_v2.jsonl \
-  --resume
-
-python scripts/generate_synthetic.py \
-  --input data/raw/nl_docs.jsonl \
-  --domain nl \
-  --adapter models/runs/mlx/latest/adapter \
-  --output data/synthetic/nl_v2.jsonl \
+  --output models/eval/ratio_nanbeige_iter500.jsonl \
   --resume
 ```
 
-### 2) Clean and ratio-filter synthetic outputs
-
-```bash
-python scripts/preprocess_synthetic.py \
-  --input data/synthetic/code_v2.jsonl \
-  --output data/validated/code_pairs.jsonl \
-  --rejected data/validated/rejected_code_pairs.jsonl \
-  --max-char-ratio 1.0 \
-  --max-token-ratio 1.0
-
-python scripts/preprocess_synthetic.py \
-  --input data/synthetic/nl_v2.jsonl \
-  --output data/validated/nl_pairs.jsonl \
-  --rejected data/validated/rejected_nl_pairs.jsonl \
-  --max-char-ratio 0.95 \
-  --max-token-ratio 0.95
-```
-
-### 3) Format validated pairs into train/valid/test
-
-```bash
-python scripts/format_training_data.py \
-  --input data/validated \
-  --output data/training \
-  --train-ratio 0.8 \
-  --valid-ratio 0.1 \
-  --test-ratio 0.1 \
-  --seed 42
-```
-
-### 4) Sanitize each split
-
-```bash
-for split in train valid test; do
-  python scripts/data_sanitization.py \
-    --input "data/training/${split}.jsonl" \
-    --sanitized "data/training/sanitized_${split}.jsonl" \
-    --unsanitized "data/training/unsanitized_${split}.jsonl"
-done
-
-for split in train valid test; do
-  mv "data/training/sanitized_${split}.jsonl" "data/training/${split}.jsonl"
-done
-```
-
-### Current data counts in workspace
-
-| File | Rows |
-| --- | ---: |
-| `data/raw/code.jsonl` | 1,571 |
-| `data/raw/nl_docs.jsonl` | 1,234 |
-| `data/synthetic/code_v2.jsonl` | 17,315 |
-| `data/synthetic/nl_v2.jsonl` | 17,056 |
-| `data/validated/code_pairs.jsonl` | 17,125 |
-| `data/validated/nl_pairs.jsonl` | 10,505 |
-| `data/training/train.jsonl` | 19,845 |
-| `data/training/valid.jsonl` | 2,473 |
-| `data/training/test.jsonl` | 2,497 |
-
-## Reproduce the 8B Evaluation Pipeline
-
-### 1) Run generation eval against Tinker checkpoint
-
-`evaluate_tinker.py` will auto-read checkpoint from
-`models/adapters/tinker/tinker_run.json` if `--checkpoint-path` is omitted.
+**Tinker cloud backend** (for Qwen3-8B):
 
 ```bash
 python scripts/evaluate_tinker.py \
   --backend tinker \
   --hf-dataset Sudhendra/semantic-compression-sft \
-  --output models/eval/tinker_eval_tightened_full.jsonl \
+  --checkpoint-path "tinker://161b1f39-3e50-53c0-9d75-f5ce804db7eb:train:0/weights/step-004500" \
+  --output models/eval/ratio_qwen3-8b_tinker_step004500.jsonl \
   --show-examples 0 \
   --resume
 ```
 
-### 2) Convert generation output to validation pairs
+### 2. Convert to Validation Pairs
+
+Transforms compression eval output into the format needed for equivalence testing:
 
 ```bash
 python - <<'PY'
@@ -232,8 +156,8 @@ import json
 from pathlib import Path
 from src.inference.domain_classifier import DomainClassifier
 
-src = Path("models/eval/tinker_eval_tightened_full.jsonl")
-dst = Path("models/eval/tinker_eval_tightened_full_pairs.jsonl")
+src = Path("models/eval/ratio_qwen3-8b_tinker_step004500.jsonl")
+dst = Path("models/eval/ratio_qwen3-8b_pairs.jsonl")
 clf = DomainClassifier()
 
 with src.open(encoding="utf-8") as fin, dst.open("w", encoding="utf-8") as fout:
@@ -244,18 +168,23 @@ with src.open(encoding="utf-8") as fin, dst.open("w", encoding="utf-8") as fout:
         verbose = row["input_text"]
         compressed = row["generated_output"]
         domain = clf.classify(verbose).value
-        fout.write(json.dumps({"verbose": verbose, "compressed": compressed, "domain": domain}) + "\n")
-
-print(dst)
+        fout.write(json.dumps({
+            "verbose": verbose,
+            "compressed": compressed,
+            "domain": domain
+        }) + "\n")
 PY
 ```
 
-### 3) Run equivalence eval (with LLM judge)
+### 3. Equivalence Eval (Cross-Model Judge)
+
+Tests whether compressed outputs produce equivalent reasoning across Claude, GPT,
+and Gemini:
 
 ```bash
 python scripts/validate_batch.py \
-  --input models/eval/tinker_eval_tightened_full_pairs.jsonl \
-  --output models/eval/tinker_equiv_tightened_full_llm_judge.jsonl \
+  --input models/eval/ratio_qwen3-8b_pairs.jsonl \
+  --output models/eval/qwen3-8b_equiv_llm_judge.jsonl \
   --models claude gpt gemini \
   --threshold 0.80 \
   --use-llm-judge \
@@ -264,23 +193,102 @@ python scripts/validate_batch.py \
   --resume
 ```
 
+---
+
+## How It Works
+
+### Pipeline Overview
+
+1. **Raw Corpora** — Source material from code repositories and natural language
+   documents
+2. **Synthetic Generation** — A trained adapter generates compression pairs from
+   raw inputs, bootstrapping the training data
+3. **Preprocessing** — Pairs are cleaned and filtered by compression ratio to
+   remove degenerate outputs
+4. **SFT Training** — LoRA fine-tuning on the filtered pairs teaches the model to
+   compress while preserving semantics
+5. **Compression Eval** — Token ratio measurement (`output_tokens / input_tokens`)
+   across the held-out test set
+6. **Equivalence Eval** — The compressed text is fed to Claude, GPT, and Gemini;
+   an LLM judge scores whether the outputs are semantically equivalent to outputs
+   from the original verbose text
+
+For full data pipeline reproduction commands, see
+[`docs/data-pipeline.md`](docs/data-pipeline.md).
+
+### Training
+
+Training is supported on two backends:
+
+- **MLX (local)** — Apple Silicon, quantized models (3B–4B). Uses `mlx-lm` for
+  LoRA fine-tuning.
+- **Tinker (cloud)** — Remote GPU training for larger models (8B+). Manages
+  checkpoints, metrics, and early stopping.
+
+```bash
+# Local MLX training
+python scripts/train_tinker.py \
+  --backend local \
+  --model Qwen/Qwen3-4B-Instruct-2507 \
+  --local-model mlx-community/Qwen3-4B-Instruct-2507-8bit \
+  --hf-dataset Sudhendra/semantic-compression-sft \
+  --output models/adapters/local_run
+
+# Cloud Tinker training
+python scripts/train_tinker.py \
+  --backend tinker \
+  --model Qwen/Qwen3-8B \
+  --hf-dataset Sudhendra/semantic-compression-sft \
+  --output models/adapters/tinker
+```
+
+---
+
 ## Project Structure
 
 ```
 compression-layer/
 ├── src/
-│   ├── validation/     # Cross-model equivalence testing
-│   ├── generation/     # Compression pair generation
-│   ├── training/       # Tinker + MLX training
-│   ├── inference/      # Compression inference paths
-│   └── utils/          # Tokenizers, caching, cost tracking
-├── data/               # Corpora and generated datasets (gitignored)
-├── models/             # Checkpoints and eval artifacts (gitignored)
-├── configs/            # YAML configs
-├── scripts/            # Entry points
-└── tests/
+│   ├── validation/        # Cross-model equivalence testing
+│   ├── generation/        # Compression pair generation
+│   ├── training/          # Tinker + MLX training pipelines
+│   ├── inference/         # Compression inference (local + cloud)
+│   ├── evaluation/        # Adapter evaluation logic
+│   └── utils/             # Tokenizers, caching, cost tracking
+├── scripts/               # CLI entry points
+│   ├── train_tinker.py    # Training (local MLX / cloud Tinker)
+│   ├── evaluate_tinker.py # Compression ratio evaluation
+│   ├── validate_batch.py  # Equivalence evaluation
+│   └── ...
+├── data/                  # Corpora and datasets (gitignored)
+├── models/                # Checkpoints and eval artifacts (gitignored)
+├── configs/               # YAML configurations
+├── docs/                  # Documentation and plans
+├── tests/                 # Test suite
+└── assets/                # README images and diagrams
 ```
+
+---
+
+## Contributing
+
+We welcome contributions, especially in these areas:
+
+- **New domains** — Extending compression beyond code and natural language (e.g.,
+  structured data, mathematical notation)
+- **Model experiments** — Training adapters on different base models or with
+  alternative LoRA configurations
+- **Evaluation methodology** — Improving the equivalence scoring system,
+  adding new judge models, or refining the pass/fail threshold
+- **Dataset expansion** — Contributing to the
+  [HuggingFace dataset](https://huggingface.co/datasets/Sudhendra/semantic-compression-sft)
+  with new high-quality compression pairs
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup instructions, branch strategy,
+and development workflow.
+
+---
 
 ## License
 
-MIT
+[MIT](LICENSE)
