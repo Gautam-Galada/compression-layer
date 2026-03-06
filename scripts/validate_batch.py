@@ -107,9 +107,15 @@ def load_validated_hashes(path: Path) -> set[str]:
 
 def estimate_validation_cost(
     num_pairs: int,
-    num_models: int,
+    model_ids: list[str] | None = None,
+    num_models: int | None = None,
     num_tasks: int = 2,
-    avg_tokens_per_call: int = 500,
+    avg_input_tokens_per_call: int = 500,
+    avg_output_tokens_per_call: int = 250,
+    use_llm_judge: bool = False,
+    llm_judge_model: str = ModelType.CLAUDE_SONNET.value,
+    avg_judge_input_tokens_per_call: int = 700,
+    avg_judge_output_tokens_per_call: int = 120,
 ) -> float:
     """
     Estimate total cost for validation.
@@ -117,33 +123,57 @@ def estimate_validation_cost(
     Each pair requires:
     - 2 calls per task (verbose + compressed)
     - num_tasks tasks
-    - num_models models
-    = 2 * num_tasks * num_models calls per pair
+    - model_count models
+    = 2 * num_tasks * model_count calls per pair
+
+    Optionally includes LLM-judge costs (one judge call per model-task pair).
     """
-    calls_per_pair = 2 * num_tasks * num_models
+    if model_ids is not None:
+        if not model_ids:
+            raise ValueError("model_ids cannot be empty")
+        model_count = len(model_ids)
+    elif num_models is not None:
+        model_count = num_models
+    else:
+        raise ValueError("Either model_ids or num_models must be provided")
+
+    calls_per_pair = 2 * num_tasks * model_count
     total_calls = num_pairs * calls_per_pair
 
     # Estimate cost (using average of model costs)
     avg_input_cost = 0.0
     avg_output_cost = 0.0
 
-    for model in MODEL_SHORTCUTS.values():
+    selected_model_ids = model_ids or [model.value for model in MODEL_SHORTCUTS.values()]
+    for model in selected_model_ids:
         from src.utils.costs import MODEL_PRICING
 
-        input_rate, output_rate = MODEL_PRICING.get(model.value, (3.0, 15.0))
+        input_rate, output_rate = MODEL_PRICING.get(model, (3.0, 15.0))
         avg_input_cost += input_rate
         avg_output_cost += output_rate
 
-    avg_input_cost /= len(MODEL_SHORTCUTS)
-    avg_output_cost /= len(MODEL_SHORTCUTS)
+    avg_input_cost /= len(selected_model_ids)
+    avg_output_cost /= len(selected_model_ids)
 
     # Estimate tokens
-    input_tokens = total_calls * avg_tokens_per_call
-    output_tokens = total_calls * (avg_tokens_per_call // 2)
+    input_tokens = total_calls * avg_input_tokens_per_call
+    output_tokens = total_calls * avg_output_tokens_per_call
 
     cost = (input_tokens / 1_000_000) * avg_input_cost + (
         output_tokens / 1_000_000
     ) * avg_output_cost
+
+    if use_llm_judge:
+        from src.utils.costs import MODEL_PRICING
+
+        judge_input_rate, judge_output_rate = MODEL_PRICING.get(llm_judge_model, (3.0, 15.0))
+        # LLM judge runs once per model-task pair (compares verbose and compressed outputs)
+        judge_calls = num_pairs * num_tasks * model_count
+        judge_input_tokens = judge_calls * avg_judge_input_tokens_per_call
+        judge_output_tokens = judge_calls * avg_judge_output_tokens_per_call
+        cost += (judge_input_tokens / 1_000_000) * judge_input_rate + (
+            judge_output_tokens / 1_000_000
+        ) * judge_output_rate
 
     return cost
 
@@ -387,7 +417,13 @@ async def main() -> int:
 
     # Estimate cost
     num_tasks = len(args.tasks) if args.tasks else 2  # Default: 2 tasks
-    estimated_cost = estimate_validation_cost(len(pairs_to_validate), len(args.models), num_tasks)
+    selected_model_ids = [MODEL_SHORTCUTS[m].value for m in args.models]
+    estimated_cost = estimate_validation_cost(
+        num_pairs=len(pairs_to_validate),
+        model_ids=selected_model_ids,
+        num_tasks=num_tasks,
+        use_llm_judge=args.use_llm_judge,
+    )
 
     console.print(f"[cyan]Estimated cost: ${estimated_cost:.2f}[/cyan]")
 
@@ -397,8 +433,13 @@ async def main() -> int:
             f"  Pairs to validate: {len(pairs_to_validate)}\n"
             f"  Models: {', '.join(args.models)}\n"
             f"  Tasks per pair: {num_tasks}\n"
-            f"  API calls: {len(pairs_to_validate) * 2 * num_tasks * len(args.models)}\n"
-            f"  Estimated cost: ${estimated_cost:.2f}"
+            f"  API calls (generation): {len(pairs_to_validate) * 2 * num_tasks * len(args.models)}\n"
+            + (
+                f"  API calls (LLM judge): {len(pairs_to_validate) * num_tasks * len(args.models)}\n"
+                if args.use_llm_judge
+                else ""
+            )
+            + f"  Estimated cost: ${estimated_cost:.2f}"
         )
         return 0
 
