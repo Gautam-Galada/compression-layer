@@ -33,7 +33,7 @@ Summary of trained adapter evaluations on the full test set (2,497 examples from
 | Model | Params | Backend | LoRA Config | Avg Token Ratio | Avg Input Tokens | Avg Output Tokens |
 | :--- | ---: | :--- | :--- | ---: | ---: | ---: |
 | Nanbeige4.1-3B (8-bit) | 3B | MLX (local) | rank 8, lr 1e-4, 500 iters | **34.8%** | 276.3 | 103.2 |
-| Qwen3-8B | 8B | Tinker (cloud) | rank 16, lr 2e-4, 4962 steps | _eval in progress_ | — | — |
+| Qwen3-8B | 8B | Tinker (cloud) | rank 16, lr 2e-4, 4962 steps | **38.6%** | 237.5 | 98.1 |
 
 > **Token ratio** = `output_tokens / input_tokens`. Lower is better. A ratio of 34.8% means
 > the compressed output uses ~35% of the original token count.
