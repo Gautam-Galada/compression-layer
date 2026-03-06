@@ -38,22 +38,51 @@ Summary of trained adapter evaluations on the full test set (2,497 examples from
 > **Token ratio** = `output_tokens / input_tokens`. Lower is better. A ratio of 34.8% means
 > the compressed output uses ~35% of the original token count.
 
-### Equivalence (Cross-Model Judge)
+### Equivalence (Cross-Model Scoring)
 
-| Model | Judge Models | Evaluated | Pass Rate (threshold 0.80) | Avg Min-Equiv |
-| :--- | :--- | ---: | ---: | ---: |
-| Qwen3-8B | Claude Sonnet, GPT-4o-mini, Gemini 2.0 Flash | 1,753 | 21.11% | 0.6791 |
+Equivalence is measured using a **3-gate system**. Both the original verbose text
+and the compressed output are sent to three frontier models (Claude, GPT, Gemini),
+which perform fact-extraction tasks. The outputs are compared through three gates:
+
+| Gate | Metric | Threshold | What it catches |
+| :--- | :--- | ---: | :--- |
+| 1 | Embedding similarity (MiniLM-L6-v2) | >= 0.60 | Gross topic drift, garbled outputs |
+| 2 | Fact overlap (atomic fact coverage) | >= 0.55 | Dropped facts, numbers, parameters |
+| 3 | LLM judge | >= 0.75 | Subtle reasoning gaps, quality issues |
+
+A sample **passes** only when the minimum score across all three models exceeds
+the threshold on **every active gate**.
+
+| Model | Sample (seed 42) | Pass Rate | Avg Min-Equiv | Median Min-Equiv |
+| :--- | ---: | ---: | ---: | ---: |
+| Qwen3-8B (step 4500) | 300 | **2.0%** | 0.390 | 0.413 |
+| Nanbeige 3B (iter 500) | 300 | — | — | — |
 
 <details>
-<summary>Equivalence breakdown by judge model</summary>
+<summary>Qwen3-8B gate-level breakdown</summary>
 
-| Model | Combined Avg | Combined Min | Judge-Only Avg | Judge-Only Min |
+**Gate failure rates** (how often each gate was the bottleneck):
+
+| Gate | Fail Rate | Avg Score |
+| :--- | ---: | ---: |
+| Embedding (>= 0.60) | 15.3% | 0.782 |
+| Fact overlap (>= 0.55) | 76.0% | 0.535 |
+| LLM judge (>= 0.75) | 96.3% | 0.584 |
+
+Without the LLM judge (gates 1+2 only), the pass rate would be **24.0%**.
+
+**Per-domain results** (3-gate, all models):
+
+| Domain | n | Pass Rate | Avg Min-Equiv | Median Min-Equiv |
 | :--- | ---: | ---: | ---: | ---: |
-| `claude-sonnet-4-20250514` | 0.7868 | 0.1842 | 0.7784 | 0.2500 |
-| `gpt-4o-mini` | 0.7911 | 0.1538 | 0.7777 | 0.2500 |
-| `gemini-2.0-flash` | 0.7092 | 0.1682 | 0.6968 | 0.2562 |
+| NL | 95 | 2.1% | 0.320 | 0.304 |
+| Mixed | 171 | 1.8% | 0.415 | 0.444 |
+| Code | 34 | 2.9% | 0.459 | 0.450 |
 
 </details>
+
+> Nanbeige row is pending evaluation. Samples are domain-stratified
+> (95 NL / 171 mixed / 34 code) to match the test set distribution.
 
 <details>
 <summary>Training run details</summary>
@@ -176,13 +205,12 @@ and Gemini:
 
 ```bash
 python scripts/validate_batch.py \
-  --input models/eval/ratio_qwen3-8b_pairs.jsonl \
-  --output models/eval/qwen3-8b_equiv_llm_judge.jsonl \
+  --input models/eval/pairs_sample300_seed42_qwen_step004500.jsonl \
+  --output models/eval/equiv_qwen_step004500_judge.jsonl \
   --models claude gpt gemini \
-  --threshold 0.80 \
   --use-llm-judge \
   --save-all \
-  --concurrency 2 \
+  --concurrency 3 \
   --resume
 ```
 

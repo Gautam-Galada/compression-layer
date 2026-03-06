@@ -58,16 +58,16 @@ def estimate_cost(
     """
     Estimate API cost for text based on model pricing.
 
-    Pricing as of 2024 (per 1M tokens):
+    Pricing as of 2025 (per 1M tokens):
     - Claude Sonnet: $3 input, $15 output
     - GPT-4o-mini: $0.15 input, $0.60 output
-    - Gemini Flash: $0.075 input, $0.30 output
+    - Gemini 2.0 Flash: $0.15 input, $0.60 output
     """
     pricing = {
         # (input_per_1m, output_per_1m)
         "claude-sonnet-4-20250514": (3.0, 15.0),
         "gpt-4o-mini": (0.15, 0.60),
-        "gemini-2.0-flash": (0.075, 0.30),
+        "gemini-2.0-flash": (0.15, 0.60),
     }
 
     tokens = count_tokens(text)

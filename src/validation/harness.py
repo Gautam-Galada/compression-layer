@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from ..utils.caching import SemanticCache
 from ..utils.tokenizers import count_tokens
 from .llm_judge import LLMJudge
-from .metrics import EquivalenceCalculator, TaskType, compute_equivalence
+from .metrics import EquivalenceCalculator, TaskType, compute_equivalence, compute_fact_overlap
 from .models import ModelClient, ModelType
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,9 @@ class ValidationResult:
     passed: bool
     llm_judge_used: bool = False
     llm_judge_scores: dict[ModelType, float] | None = None
+    # Per-gate scores for the 3-gate system
+    embedding_scores: dict[ModelType, float] | None = None
+    fact_overlap_scores: dict[ModelType, float] | None = None
 
     @property
     def token_reduction_percent(self) -> float:
@@ -57,27 +60,43 @@ class BatchValidationStats:
     results: list[ValidationResult] = field(default_factory=list)
 
 
-# Default task prompts for validation
+# Default task prompts for validation.
+#
+# These prompts are designed to test FACTUAL PRECISION — whether the context
+# preserves specific facts, numbers, parameter names, and code details.
+# A good compression must let the model extract the same facts as the verbose
+# original.  Generic "summarize" or "key points" prompts would test gist
+# retention, which is too lenient for production middleware.
 DEFAULT_TASK_PROMPTS: dict[TaskType, str] = {
-    TaskType.QA: """Based on the following context, answer the question concisely.
+    TaskType.QA: """Read the context below and list every specific fact it contains.
+Include all numbers, percentages, names, dates, quantities, and technical terms.
+Be exhaustive — do not summarize or paraphrase. One fact per line.
 
 Context:
 {context}
 
-Question: What are the key points mentioned?
-Answer:""",
-    TaskType.REASONING: """Analyze the following information and explain the main implications.
+Facts:""",
+    TaskType.REASONING: """Read the information below and answer these questions using ONLY the information provided.
+1. What specific quantities, metrics, or measurements are mentioned?
+2. What entities (people, organizations, systems, models) are named?
+3. What causal or conditional relationships are stated?
+List each answer with the exact values from the text. Do not infer beyond what is stated.
 
 Information:
 {context}
 
-Analysis:""",
-    TaskType.CODE_GEN: """Based on the following specification, write the corresponding code.
+Answers:""",
+    TaskType.CODE_GEN: """Read the code or technical specification below and list:
+1. Every function/class/variable name defined
+2. Every parameter and its type or default value
+3. Every return type or return value
+4. Every numeric constant, threshold, or configuration value
+Be precise — use the exact names and values from the source.
 
-Specification:
+Source:
 {context}
 
-Code:""",
+Details:""",
 }
 
 
@@ -88,38 +107,48 @@ class ValidationHarness:
     Validates that compressed text produces equivalent model outputs
     across multiple LLMs (Claude, GPT, Gemini).
 
-    The validation pipeline now:
-    1. Uses temperature=0.0 for deterministic outputs
-    2. Uses pure semantic similarity (not lexical) by default
-    3. Optionally uses LLM-as-judge for more accurate equivalence
-    4. Defaults to a lower threshold (0.72) that better matches actual equivalence
+    The validation pipeline uses a 3-gate scoring system:
+    1. Embedding similarity (MiniLM) - catches gross topic drift / garbled outputs
+    2. Fact overlap - catches dropped facts, numbers, parameter names
+    3. LLM judge (optional) - catches subtle reasoning gaps, quality issues
+
+    A pair passes only if ALL active gates exceed their thresholds.
+    The final equivalence_score is min(all gate scores).
     """
+
+    # Cap frontier model output tokens to fit within MiniLM-L6-v2's 256 token window.
+    # This prevents silent truncation that corrupts embedding similarity scores.
+    VALIDATION_MAX_TOKENS = 200
 
     def __init__(
         self,
         models: list[ModelType] | None = None,
-        equivalence_threshold: float = 0.72,
         tasks: list[TaskType] | None = None,
         cache: SemanticCache | None = None,
         use_llm_judge: bool = False,  # Optional LLM judge for more accuracy
         llm_judge_model: ModelType = ModelType.CLAUDE_SONNET,
+        # 3-gate thresholds
+        embedding_threshold: float = 0.60,
+        fact_overlap_threshold: float = 0.55,
+        judge_threshold: float = 0.75,
     ):
         """
         Initialize the validation harness.
 
         Args:
             models: List of models to validate against (defaults to all)
-            equivalence_threshold: Minimum equivalence score to pass (default: 0.72)
             tasks: Task types to test (defaults to QA + REASONING)
             cache: Optional cache for API responses
             use_llm_judge: Whether to use LLM-as-judge for equivalence (costs more but more accurate)
             llm_judge_model: Model to use for LLM judge (default: Claude Sonnet)
+            embedding_threshold: Gate 1 - min embedding similarity to pass (default: 0.60)
+            fact_overlap_threshold: Gate 2 - min fact overlap to pass (default: 0.55)
+            judge_threshold: Gate 3 - min LLM judge score to pass (default: 0.75)
         """
         if models is None:
             models = [ModelType.CLAUDE_SONNET, ModelType.GPT4O_MINI, ModelType.GEMINI_FLASH]
 
         self.models = models
-        self.threshold = equivalence_threshold
         # Auto-select tasks based on domain if not specified
         if tasks is None:
             # Will be set in validate_pair based on pair.domain
@@ -127,6 +156,11 @@ class ValidationHarness:
         else:
             self.tasks = tasks
         self.cache = cache
+
+        # 3-gate thresholds
+        self.embedding_threshold = embedding_threshold
+        self.fact_overlap_threshold = fact_overlap_threshold
+        self.judge_threshold = judge_threshold
 
         # Initialize clients
         self.clients = {m: ModelClient(m, cache=cache) for m in models}
@@ -149,16 +183,26 @@ class ValidationHarness:
         """
         Validate a single compression pair across all models and tasks.
 
+        Uses a 3-gate scoring system:
+        - Gate 1 (embedding): MiniLM cosine similarity >= embedding_threshold
+        - Gate 2 (fact_overlap): Atomic fact coverage >= fact_overlap_threshold
+        - Gate 3 (judge, optional): LLM judge score >= judge_threshold
+
+        A pair passes only if ALL active gates pass.
+
         Args:
             pair: The compression pair to validate
             task_prompts: Optional custom prompts (use {context} placeholder)
 
         Returns:
-            ValidationResult with equivalence scores and pass/fail status
+            ValidationResult with per-gate scores and pass/fail status
         """
         prompts = task_prompts or DEFAULT_TASK_PROMPTS
+        # Per-model combined scores (legacy field, now min of gates)
         scores: dict[ModelType, float] = {}
         llm_judge_scores: dict[ModelType, float] | None = {} if self.use_llm_judge else None
+        embedding_scores: dict[ModelType, float] = {}
+        fact_overlap_scores: dict[ModelType, float] = {}
 
         # Auto-select tasks based on domain if not set
         if self.tasks is None:
@@ -169,27 +213,46 @@ class ValidationHarness:
         else:
             tasks = self.tasks
 
-        async def eval_model(model_type: ModelType) -> tuple[ModelType, float, float | None]:
-            """Evaluate equivalence for a single model across all tasks."""
+        async def eval_model(
+            model_type: ModelType,
+        ) -> tuple[ModelType, float, float, float, float | None]:
+            """Evaluate equivalence for a single model across all tasks.
+
+            Returns (model_type, avg_combined, avg_embedding, avg_fact_overlap, avg_judge).
+            """
             client = self.clients[model_type]
             task_scores: list[float] = []
-            judge_scores: list[float] = []
+            judge_task_scores: list[float] = []
+            embedding_sims: list[float] = []
+            fact_scores: list[float] = []
 
             for task_type in tasks:
                 prompt_template = prompts.get(task_type, prompts[TaskType.QA])
 
                 # Get outputs for verbose and compressed inputs
-                # Note: temperature=0.0 is now the default in ModelClient
                 verbose_prompt = prompt_template.format(context=pair.verbose)
                 compressed_prompt = prompt_template.format(context=pair.compressed)
 
-                verbose_out = await client.complete(verbose_prompt)
-                compressed_out = await client.complete(compressed_prompt)
+                verbose_out = await client.complete(
+                    verbose_prompt, max_tokens=self.VALIDATION_MAX_TOKENS
+                )
+                compressed_out = await client.complete(
+                    compressed_prompt, max_tokens=self.VALIDATION_MAX_TOKENS
+                )
 
-                # Compute equivalence using semantic similarity
-                score = await compute_equivalence(verbose_out, compressed_out, task_type)
+                # Gate 1: Embedding similarity
+                embedding_sim = self.metrics.compute_semantic_similarity(
+                    verbose_out, compressed_out
+                )
+                embedding_sims.append(embedding_sim)
 
-                # Optionally use LLM judge for more accurate assessment
+                # Gate 2: Fact overlap
+                fact_score = compute_fact_overlap(
+                    verbose_out, compressed_out, calculator=self.metrics
+                )
+                fact_scores.append(fact_score)
+
+                # Gate 3: LLM judge (optional)
                 llm_score = None
                 if self.use_llm_judge and self.llm_judge:
                     task_desc = f"{task_type.value} task: extracting and comparing information"
@@ -199,9 +262,10 @@ class ValidationHarness:
                         compressed_output=compressed_out,
                     )
                     llm_score = self.llm_judge.verdict_to_score(judge_result)
-                    judge_scores.append(llm_score)
+                    judge_task_scores.append(llm_score)
 
-                    # Combine semantic and LLM judge (LLM judge weighted heavily)
+                # Combined score for legacy equivalence_scores field
+                if llm_score is not None:
                     combined = self.metrics.compute(
                         verbose_out,
                         compressed_out,
@@ -209,26 +273,48 @@ class ValidationHarness:
                     )
                     task_scores.append(combined.combined_score)
                 else:
+                    score = await compute_equivalence(verbose_out, compressed_out, task_type)
                     task_scores.append(score)
 
             # Average across tasks
-            avg_score = sum(task_scores) / len(task_scores)
-            avg_judge = sum(judge_scores) / len(judge_scores) if judge_scores else None
+            avg_combined = sum(task_scores) / len(task_scores)
+            avg_embedding = sum(embedding_sims) / len(embedding_sims)
+            avg_fact = sum(fact_scores) / len(fact_scores)
+            avg_judge = (
+                sum(judge_task_scores) / len(judge_task_scores) if judge_task_scores else None
+            )
 
-            return model_type, avg_score, avg_judge
+            return model_type, avg_combined, avg_embedding, avg_fact, avg_judge
 
         # Run all models in parallel
         results = await asyncio.gather(*[eval_model(m) for m in self.models])
 
-        for model_type, score, judge_score in results:
-            scores[model_type] = score
+        for model_type, combined, embedding, fact, judge_score in results:
+            scores[model_type] = combined
+            embedding_scores[model_type] = embedding
+            fact_overlap_scores[model_type] = fact
             if llm_judge_scores is not None and judge_score is not None:
                 llm_judge_scores[model_type] = judge_score
 
-        # Calculate metrics
+        # 3-gate pass/fail logic
+        min_embedding = min(embedding_scores.values())
+        min_fact_overlap = min(fact_overlap_scores.values())
+
+        gate1_pass = min_embedding >= self.embedding_threshold
+        gate2_pass = min_fact_overlap >= self.fact_overlap_threshold
+
+        if self.use_llm_judge and llm_judge_scores:
+            min_judge = min(llm_judge_scores.values())
+            gate3_pass = min_judge >= self.judge_threshold
+            all_gates_pass = gate1_pass and gate2_pass and gate3_pass
+            min_equiv = min(min_embedding, min_fact_overlap, min_judge)
+        else:
+            all_gates_pass = gate1_pass and gate2_pass
+            min_equiv = min(min_embedding, min_fact_overlap)
+
+        # Calculate token metrics
         verbose_tokens = count_tokens(pair.verbose)
         compressed_tokens = count_tokens(pair.compressed)
-        min_equiv = min(scores.values())
 
         return ValidationResult(
             verbose_tokens=verbose_tokens,
@@ -236,9 +322,11 @@ class ValidationHarness:
             compression_ratio=compressed_tokens / verbose_tokens if verbose_tokens > 0 else 1.0,
             equivalence_scores=scores,
             min_equivalence=min_equiv,
-            passed=min_equiv >= self.threshold,
+            passed=all_gates_pass,
             llm_judge_used=self.use_llm_judge,
-            llm_judge_scores=llm_judge_scores if llm_judge_scores is not None else None,
+            llm_judge_scores=llm_judge_scores if llm_judge_scores else None,
+            embedding_scores=embedding_scores,
+            fact_overlap_scores=fact_overlap_scores,
         )
 
     async def validate_batch(
@@ -310,8 +398,10 @@ async def validate_compression(
     verbose: str,
     compressed: str,
     domain: str = "nl",
-    threshold: float = 0.72,  # Lowered from 0.85
     use_llm_judge: bool = False,
+    embedding_threshold: float = 0.60,
+    fact_overlap_threshold: float = 0.55,
+    judge_threshold: float = 0.75,
 ) -> ValidationResult:
     """
     Convenience function to validate a single compression.
@@ -320,15 +410,19 @@ async def validate_compression(
         verbose: Original text
         compressed: Compressed text
         domain: Content domain
-        threshold: Equivalence threshold (default: 0.72)
         use_llm_judge: Whether to use LLM judge for more accurate equivalence
+        embedding_threshold: Gate 1 threshold (default: 0.60)
+        fact_overlap_threshold: Gate 2 threshold (default: 0.55)
+        judge_threshold: Gate 3 threshold (default: 0.75)
 
     Returns:
         ValidationResult
     """
     harness = ValidationHarness(
-        equivalence_threshold=threshold,
         use_llm_judge=use_llm_judge,
+        embedding_threshold=embedding_threshold,
+        fact_overlap_threshold=fact_overlap_threshold,
+        judge_threshold=judge_threshold,
     )
     pair = CompressionPair(verbose=verbose, compressed=compressed, domain=domain)
     return await harness.validate_pair(pair)

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Validate synthetic compression pairs with multi-model evaluation.
 
+Pass/fail is determined by the 3-gate system (embedding, fact_overlap, judge).
+
 Usage:
     python scripts/validate_synthetic.py \
       --input data/synthetic/code_v2.jsonl \
       --output data/validated/code_v2.jsonl \
-      --threshold 0.80 \
       --concurrency 4
 """
 
@@ -50,12 +51,14 @@ def _write_lines(path: Path, lines: list[str], mode: str) -> None:
 async def validate_batch(
     pairs: list[GeneratedPair],
     output_path: Path,
-    threshold: float = 0.80,
     concurrency: int = 4,
     models: list[str] | None = None,
     harness: ValidationHarness | None = None,
 ) -> dict:
-    """Validate pairs and save passing ones."""
+    """Validate pairs and save passing ones.
+
+    Pass/fail is determined by the 3-gate system (result.passed).
+    """
     model_map = {
         "claude": ModelType.CLAUDE_SONNET,
         "gpt": ModelType.GPT4O_MINI,
@@ -68,7 +71,6 @@ async def validate_batch(
         model_types = [model_map[m] for m in models]
         harness = ValidationHarness(
             models=model_types,
-            equivalence_threshold=threshold,
         )
 
     passed = 0
@@ -84,7 +86,7 @@ async def validate_batch(
                 domain=pair.domain,
             )
             result = await harness.validate_pair(compression_pair)
-            return result.min_equivalence >= threshold, pair
+            return result.passed, pair
 
     await asyncio.to_thread(_write_lines, output_path, [], "w")
 
@@ -114,7 +116,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--threshold", type=float, default=0.80)
+    # --threshold is removed; pass/fail uses the 3-gate system
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--models", nargs="+", default=["claude", "gpt"])
     parser.add_argument("--limit", type=int, default=None)
@@ -130,7 +132,6 @@ def main() -> int:
         validate_batch(
             pairs,
             args.output,
-            threshold=args.threshold,
             concurrency=args.concurrency,
             models=args.models,
         )

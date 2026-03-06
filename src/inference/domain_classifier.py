@@ -62,8 +62,8 @@ class DomainClassifier:
 
     def __init__(
         self,
-        code_threshold: float = 0.3,
-        high_code_threshold: float = 0.7,
+        code_threshold: float = 0.10,
+        high_code_threshold: float = 0.30,
     ):
         """
         Initialize the domain classifier.
@@ -106,7 +106,8 @@ class DomainClassifier:
                 indicators=[],
             )
 
-        lines = text.strip().split("\n")
+        stripped = text.strip()
+        lines = stripped.split("\n")
         total_lines = len(lines)
 
         # Count lines matching code patterns
@@ -130,6 +131,17 @@ class DomainClassifier:
         # Adjust based on full-text pattern density
         pattern_density = full_text_code_matches / len(CODE_PATTERNS)
         adjusted_ratio = 0.7 * code_ratio + 0.3 * pattern_density
+
+        # Anchor boost: if the text opens with a code construct (def, class,
+        # function, etc.) the content is structurally code even when the
+        # line-level ratio is diluted by docstrings or comments.
+        first_line = lines[0].lstrip()
+        _ANCHOR_RE = re.compile(r"^(def |class |function |async (def |function )|module |package )")
+        if _ANCHOR_RE.match(first_line):
+            # Guarantee at least mixed; often code
+            adjusted_ratio = max(adjusted_ratio, self.code_threshold + 0.01)
+            if "anchor_start" not in code_indicators:
+                code_indicators.insert(0, "anchor_start")
 
         # Check for NL indicators
         nl_matches = sum(1 for _, pattern in NL_PATTERNS if pattern.search(text))

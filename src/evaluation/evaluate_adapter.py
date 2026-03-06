@@ -147,7 +147,6 @@ async def run_evaluation(
     harness: HarnessProtocol,
     output_path: Path,
     concurrency: int = 2,
-    min_equivalence: float = 0.0,
 ) -> list[EvaluationResult]:
     """Evaluate adapter by generating compressions and scoring equivalence."""
     await asyncio.to_thread(_prepare_output, output_path)
@@ -186,7 +185,7 @@ async def run_evaluation(
                 equivalence_scores={
                     model.value: score for model, score in validation.equivalence_scores.items()
                 },
-                passed=validation.min_equivalence >= min_equivalence,
+                passed=validation.passed,
                 duration_ms=duration_ms,
             )
 
@@ -300,12 +299,6 @@ def parse_args() -> argparse.Namespace:
         help="Output path for evaluation results.",
     )
     parser.add_argument(
-        "--equivalence-threshold",
-        type=float,
-        default=0.72,
-        help="Equivalence threshold for pass/fail reporting.",
-    )
-    parser.add_argument(
         "--models",
         nargs="+",
         choices=["claude", "gpt", "gemini"],
@@ -376,7 +369,6 @@ async def main() -> int:
 
     harness = ValidationHarness(
         models=models,
-        equivalence_threshold=args.equivalence_threshold,
         tasks=tasks,
         cache=None,
         use_llm_judge=args.use_llm_judge,
@@ -409,7 +401,6 @@ async def main() -> int:
         harness=harness,
         output_path=args.output,
         concurrency=args.concurrency,
-        min_equivalence=args.equivalence_threshold,
     )
 
     print_summary(results)

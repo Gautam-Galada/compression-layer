@@ -6,8 +6,10 @@ from src.validation.metrics import (
     TaskType,
     compute_ast_similarity,
     compute_code_equivalence,
+    compute_fact_overlap,
     compute_lexical_overlap,
     compute_nl_equivalence,
+    extract_atomic_facts,
     is_equivalent,
 )
 
@@ -152,3 +154,112 @@ class TestTaskTypes:
         assert TaskType.CODE_GEN.value == "code_generation"
         assert TaskType.REASONING.value == "reasoning"
         assert TaskType.SUMMARIZATION.value == "summarization"
+
+
+class TestExtractAtomicFacts:
+    """Tests for extract_atomic_facts."""
+
+    def test_simple_sentences(self):
+        """Multiple sentences should produce multiple facts."""
+        text = "Revenue is $10M. Headcount is 500. Founded in 2020."
+        facts = extract_atomic_facts(text)
+        assert len(facts) >= 3
+
+    def test_compound_sentence(self):
+        """Compound sentences joined by 'and' should be split."""
+        text = "Revenue grew 15% and headcount increased to 500."
+        facts = extract_atomic_facts(text)
+        assert len(facts) >= 2
+
+    def test_empty_text(self):
+        """Empty text should produce no facts."""
+        assert extract_atomic_facts("") == []
+
+    def test_short_fragments_filtered(self):
+        """Fragments shorter than 10 chars should be filtered out."""
+        text = "OK. Yes. Revenue grew to $10M year over year."
+        facts = extract_atomic_facts(text)
+        # "OK" and "Yes" are too short
+        assert all(len(f) > 10 for f in facts)
+
+    def test_decimal_numbers_preserved(self):
+        """Decimal numbers like 0.258 should NOT be broken by sentence splitting."""
+        text = "Final loss was 0.258. Learning rate was 2e-5."
+        facts = extract_atomic_facts(text)
+        # The decimal 0.258 must appear intact in some fact
+        joined = " ".join(facts)
+        assert "0.258" in joined, f"Decimal 0.258 was broken: {facts}"
+
+    def test_version_numbers_preserved(self):
+        """Version numbers like 3.11 should not be broken."""
+        text = "Python 3.11 is required. Node 18.0 is optional."
+        facts = extract_atomic_facts(text)
+        joined = " ".join(facts)
+        assert "3.11" in joined, f"Version 3.11 was broken: {facts}"
+
+    def test_semicolon_splitting(self):
+        """Facts separated by semicolons should be split."""
+        text = "Revenue is $10M; headcount is 500; founded in 2020"
+        facts = extract_atomic_facts(text)
+        assert len(facts) >= 3
+
+    def test_deduplication(self):
+        """Duplicate facts should be removed."""
+        text = "Revenue is $10M. Revenue is $10M. Headcount is 500."
+        facts = extract_atomic_facts(text)
+        # Should deduplicate the repeated revenue fact
+        revenue_facts = [f for f in facts if "revenue" in f]
+        assert len(revenue_facts) == 1
+
+
+class TestFactOverlap:
+    """Tests for compute_fact_overlap (recall-weighted)."""
+
+    def test_identical_text(self):
+        """Identical text should have high fact overlap."""
+        text = "The revenue increased 15%. Headcount grew to 500. Profit margin is 20%."
+        overlap = compute_fact_overlap(text, text)
+        assert overlap > 0.8
+
+    def test_partially_overlapping(self):
+        """When compressed drops some facts, overlap should be moderate."""
+        verbose = "Revenue is $10M. Headcount is 500. Founded in 2020. CEO is John Smith."
+        compressed = "Revenue is $10M. Headcount is 500."
+        overlap = compute_fact_overlap(verbose, compressed)
+        # Missing 2 of 4 facts — overlap should be less than perfect
+        assert 0.0 < overlap < 1.0
+
+    def test_empty_text_returns_zero(self):
+        """Empty text should return 0."""
+        assert compute_fact_overlap("", "something meaningful here") == 0.0
+        assert compute_fact_overlap("something meaningful here", "") == 0.0
+
+    def test_completely_different(self):
+        """Unrelated texts should have low overlap."""
+        verbose = "The weather is sunny today with clear skies."
+        compressed = "Python uses indentation for code blocks."
+        overlap = compute_fact_overlap(verbose, compressed)
+        assert overlap < 0.5
+
+    def test_recall_weighting(self):
+        """Dropping facts from verbose should hurt more than adding facts in compressed.
+
+        With recall_weight=0.7, verbose_coverage (recall) matters 2.3x more
+        than compressed_coverage (precision).
+        """
+        verbose = "Revenue is $10M. Headcount is 500. Founded in 2020."
+        # Compressed keeps only 1 of 3 facts but adds an extra one
+        compressed = "Revenue is $10M. The sky is blue and clouds are fluffy."
+        overlap = compute_fact_overlap(verbose, compressed)
+        # Verbose coverage ≈ 1/3, compressed coverage ≈ 1/2
+        # Score ≈ 0.7 * 0.33 + 0.3 * 0.5 = 0.381
+        # Should be quite low due to recall weighting
+        assert overlap < 0.5
+
+    def test_decimal_numbers_dont_break_scoring(self):
+        """Facts containing decimal numbers should score correctly."""
+        verbose = "The model has 7 billion parameters. Final loss was 0.258."
+        compressed = "The model has 7 billion parameters. Final loss was 0.258."
+        overlap = compute_fact_overlap(verbose, compressed)
+        # Identical content should score very high
+        assert overlap > 0.8

@@ -82,7 +82,11 @@ class GenerationConfig(BaseSettings):
 
 
 class ValidationConfig(BaseSettings):
-    """Settings specific to cross-model validation."""
+    """Settings specific to cross-model validation.
+
+    Pass/fail is determined by the 3-gate system in ValidationHarness
+    (embedding >= 0.60, fact_overlap >= 0.55, judge >= 0.75).
+    """
 
     model_config = SettingsConfigDict(extra="ignore")
 
@@ -91,7 +95,6 @@ class ValidationConfig(BaseSettings):
         "gpt-4o-mini",
         "gemini-2.0-flash",
     ]
-    equivalence_threshold: float = 0.85
     tasks: list[str] = ["qa", "reasoning"]
     concurrency: int = 10
 

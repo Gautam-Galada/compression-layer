@@ -546,38 +546,63 @@ def is_equivalent(
 # Fact Extraction (Optional Enhancement)
 # =============================================================================
 
+# Regex that matches sentence-ending punctuation (.!?) but NOT decimal numbers
+# like 0.258, version numbers like 3.11, or ellipses (...).
+# A dot is a sentence boundary UNLESS it has digits on BOTH sides (e.g. 3.14).
+_SENTENCE_BOUNDARY = re.compile(
+    r"\.(?!\d)"  # dot NOT followed by a digit  → "500. Next" splits, "0.258" doesn't
+    r"|[!?]+"  # exclamation / question marks
+)
+
+# Secondary splitters for compound sentences and list items.
+_COMPOUND_SPLITTERS = re.compile(
+    r"\s*;\s*"  # semicolons
+    r"|\s+(?:and|but|however|also|additionally)\s+"  # conjunctions
+    r"|,\s+(?:and|but)\s+"  # ", and" / ", but"
+    r"|\n[-*]\s+"  # markdown list items
+    r"|\n\d+[.)]\s+"  # numbered list items
+)
+
 
 def extract_atomic_facts(text: str) -> list[str]:
     """
     Extract atomic facts from text for fact-level comparison.
 
-    This is a simple heuristic approach. For better accuracy,
-    use an LLM to extract facts.
+    Uses number-aware sentence splitting to avoid breaking decimals
+    (e.g. ``0.258``, ``v3.11``) and then splits compound sentences
+    on semicolons, conjunctions, and list markers.
 
     Args:
         text: Input text
 
     Returns:
-        List of atomic fact strings
+        List of atomic fact strings (lowercased, deduplicated)
     """
-    # Split on sentence boundaries
-    sentences = re.split(r"[.!?]+", text)
+    if not text or not text.strip():
+        return []
 
-    facts = []
+    # Step 1: split on sentence boundaries (number-safe)
+    sentences = _SENTENCE_BOUNDARY.split(text)
+
+    facts: list[str] = []
+    seen: set[str] = set()
+
     for sentence in sentences:
         sentence = sentence.strip()
         if not sentence:
             continue
 
-        # Split compound sentences on conjunctions
-        parts = re.split(
-            r"\s+(?:and|but|however|also|additionally)\s+", sentence, flags=re.IGNORECASE
-        )
+        # Step 2: split compound sentences on conjunctions / semicolons / lists
+        parts = _COMPOUND_SPLITTERS.split(sentence)
 
         for part in parts:
             part = part.strip()
-            if len(part) > 10:  # Filter very short fragments
-                facts.append(part.lower())
+            if len(part) <= 10:  # Filter very short fragments
+                continue
+            normalized = part.lower()
+            if normalized not in seen:
+                seen.add(normalized)
+                facts.append(normalized)
 
     return facts
 
@@ -586,24 +611,37 @@ def compute_fact_overlap(
     verbose_output: str,
     compressed_output: str,
     calculator: "EquivalenceCalculator | None" = None,
-    similarity_threshold: float = 0.8,
+    similarity_threshold: float = 0.72,
+    recall_weight: float = 0.7,
 ) -> float:
     """
-    Compute Jaccard similarity on extracted atomic facts.
+    Compute recall-weighted fact overlap between verbose and compressed outputs.
 
-    This is more meaningful than token-level Jaccard for longer outputs.
+    For middleware use-cases, **dropped facts are worse than added facts**.
+    The score is therefore weighted toward recall (verbose → compressed coverage)
+    rather than the symmetric average used previously.
+
+    Changes from the original implementation:
+    - Default ``similarity_threshold`` lowered from 0.80 → 0.72 because the
+      improved ``extract_atomic_facts`` produces shorter, more focused fragments
+      that MiniLM can match more reliably at a lower threshold.
+    - Scoring is ``recall_weight * verbose_coverage + (1 - recall_weight) * compressed_coverage``
+      instead of a 50/50 average.  The default 0.7 / 0.3 split means dropped
+      facts hurt the score ~2.3× more than hallucinated additions.
 
     Args:
         verbose_output: The verbose/original text
         compressed_output: The compressed text
         calculator: Optional EquivalenceCalculator instance to reuse (avoids model reload)
-        similarity_threshold: Threshold for considering facts as matching (default 0.8)
+        similarity_threshold: Threshold for considering facts as matching (default 0.72)
+        recall_weight: Weight for verbose→compressed coverage (default 0.7).
+            The remaining ``1 - recall_weight`` weights compressed→verbose coverage.
 
     Returns:
         Fact overlap score between 0.0 and 1.0
     """
-    verbose_facts = set(extract_atomic_facts(verbose_output))
-    compressed_facts = set(extract_atomic_facts(compressed_output))
+    verbose_facts = extract_atomic_facts(verbose_output)
+    compressed_facts = extract_atomic_facts(compressed_output)
 
     if not verbose_facts or not compressed_facts:
         return 0.0
@@ -611,7 +649,7 @@ def compute_fact_overlap(
     # Use provided calculator or create new one
     calc = calculator or EquivalenceCalculator(semantic_weight=1.0, lexical_weight=0.0)
 
-    # For each verbose fact, find best match in compressed facts
+    # Recall: for each verbose fact, find best match in compressed facts
     verbose_matches = 0
     for vf in verbose_facts:
         for cf in compressed_facts:
@@ -620,7 +658,7 @@ def compute_fact_overlap(
                 verbose_matches += 1
                 break  # Early exit: found a match for this verbose fact
 
-    # Symmetric: also check compressed -> verbose
+    # Precision: also check compressed → verbose
     compressed_matches = 0
     for cf in compressed_facts:
         for vf in verbose_facts:
@@ -629,10 +667,11 @@ def compute_fact_overlap(
                 compressed_matches += 1
                 break  # Early exit: found a match for this compressed fact
 
-    # Compute per-side coverage and average them to avoid double-counting
-    verbose_coverage = verbose_matches / len(verbose_facts) if verbose_facts else 0.0
-    compressed_coverage = compressed_matches / len(compressed_facts) if compressed_facts else 0.0
-    return (verbose_coverage + compressed_coverage) / 2.0
+    verbose_coverage = verbose_matches / len(verbose_facts)
+    compressed_coverage = compressed_matches / len(compressed_facts)
+
+    # Recall-weighted combination: dropped facts hurt more than added facts
+    return recall_weight * verbose_coverage + (1 - recall_weight) * compressed_coverage
 
 
 # =============================================================================

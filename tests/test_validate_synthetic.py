@@ -31,8 +31,9 @@ def test_validate_batch_writes_passing_pairs(tmp_path) -> None:
     ]
 
     class DummyResult:
-        def __init__(self, score):
-            self.min_equivalence = score
+        def __init__(self, passed):
+            self.min_equivalence = 0.9 if passed else 0.5
+            self.passed = passed
 
     class DummyHarness:
         def __init__(self):
@@ -40,13 +41,12 @@ def test_validate_batch_writes_passing_pairs(tmp_path) -> None:
 
         async def validate_pair(self, pair):
             self.calls += 1
-            return DummyResult(0.9 if self.calls == 1 else 0.5)
+            return DummyResult(passed=(self.calls == 1))
 
     stats = asyncio.run(
         validate_batch(
             pairs,
             output_path,
-            threshold=0.8,
             concurrency=2,
             models=["claude"],
             harness=DummyHarness(),

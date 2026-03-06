@@ -111,7 +111,7 @@ def estimate_validation_cost(
     num_models: int | None = None,
     num_tasks: int = 2,
     avg_input_tokens_per_call: int = 500,
-    avg_output_tokens_per_call: int = 250,
+    avg_output_tokens_per_call: int = 150,  # Lowered: max_tokens capped at 200
     use_llm_judge: bool = False,
     llm_judge_model: str = ModelType.CLAUDE_SONNET.value,
     avg_judge_input_tokens_per_call: int = 700,
@@ -201,6 +201,15 @@ def save_single_result(
             model.value: score for model, score in result.equivalence_scores.items()
         },
         "llm_judge_used": result.llm_judge_used,
+        # Per-gate scores for the 3-gate system
+        "embedding_scores": {model.value: score for model, score in result.embedding_scores.items()}
+        if result.embedding_scores
+        else None,
+        "fact_overlap_scores": {
+            model.value: score for model, score in result.fact_overlap_scores.items()
+        }
+        if result.fact_overlap_scores
+        else None,
     }
 
     # Include LLM judge scores if available
@@ -315,13 +324,6 @@ async def main() -> int:
 
     # Validation options
     parser.add_argument(
-        "--threshold",
-        "-t",
-        type=float,
-        default=0.72,
-        help="Minimum equivalence threshold to pass (default: 0.72)",
-    )
-    parser.add_argument(
         "--models",
         "-m",
         nargs="+",
@@ -339,6 +341,24 @@ async def main() -> int:
         "--use-llm-judge",
         action="store_true",
         help="Use LLM-as-judge for more accurate equivalence (costs more)",
+    )
+    parser.add_argument(
+        "--embedding-threshold",
+        type=float,
+        default=0.60,
+        help="Gate 1: minimum embedding similarity to pass (default: 0.60)",
+    )
+    parser.add_argument(
+        "--fact-overlap-threshold",
+        type=float,
+        default=0.55,
+        help="Gate 2: minimum fact overlap to pass (default: 0.55)",
+    )
+    parser.add_argument(
+        "--judge-threshold",
+        type=float,
+        default=0.75,
+        help="Gate 3: minimum LLM judge score to pass (default: 0.75)",
     )
 
     # Processing options
@@ -459,7 +479,6 @@ async def main() -> int:
         if len(pairs_to_validate) > 5:
             console.print(f"  ... and {len(pairs_to_validate) - 5} more")
         console.print(f"\nModels: {', '.join(args.models)}")
-        console.print(f"Threshold: {args.threshold}")
         console.print(f"Estimated cost: ${estimated_cost:.2f}")
         return 0
 
@@ -497,10 +516,12 @@ async def main() -> int:
     models = [MODEL_SHORTCUTS[m] for m in args.models]
     harness = ValidationHarness(
         models=models,
-        equivalence_threshold=args.threshold,
         tasks=tasks,
         cache=cache,
         use_llm_judge=args.use_llm_judge,
+        embedding_threshold=args.embedding_threshold,
+        fact_overlap_threshold=args.fact_overlap_threshold,
+        judge_threshold=args.judge_threshold,
     )
 
     if args.use_llm_judge:
@@ -526,7 +547,8 @@ async def main() -> int:
     # Validate with progress
     console.print(
         f"\n[cyan]Validating {len(pairs_to_validate)} pairs against {len(models)} models "
-        f"(threshold: {args.threshold})...[/cyan]"
+        f"(3-gate: embed>={args.embedding_threshold}, fact>={args.fact_overlap_threshold}"
+        f"{', judge>=' + str(args.judge_threshold) if args.use_llm_judge else ''})...[/cyan]"
     )
 
     sem = asyncio.Semaphore(args.concurrency)
