@@ -33,7 +33,6 @@ Summary of trained adapter evaluations on the full test set (2,497 examples from
 | Model | Params | Backend | LoRA Config | Avg Token Ratio | Avg Input Tokens | Avg Output Tokens |
 | :--- | ---: | :--- | :--- | ---: | ---: | ---: |
 | Nanbeige4.1-3B (8-bit) | 3B | MLX (local) | rank 8, lr 1e-4, 500 iters | **34.8%** | 276.3 | 103.2 |
-| Nanbeige4.1-3B (8-bit) | 3B | MLX (local) | rank 16, lr 5e-5, 1000 iters | **34.8%** | 276.3 | 96.2 |
 | Qwen3-8B | 8B | Tinker (cloud) | rank 16, lr 2e-4, 4962 steps | _eval in progress_ | — | — |
 
 > **Token ratio** = `output_tokens / input_tokens`. Lower is better. A ratio of 34.8% means
@@ -64,12 +63,6 @@ Summary of trained adapter evaluations on the full test set (2,497 examples from
 - LoRA: rank 8, alpha 16, 16 layers
 - Config: 500 iters, batch size 4, lr 1e-4
 - Eval artifact: `models/eval/ratio_nanbeige_iter500.jsonl`
-
-**Nanbeige 3B — 1000 iterations (MLX)**
-- Model: `mlx-community/Nanbeige4.1-3B-8bit`
-- LoRA: rank 16, alpha 32, 16 layers
-- Config: 1000 iters, batch size 4, lr 5e-5
-- Eval artifact: `models/eval/ratio_nanbeige_iter1000.jsonl`
 
 **Qwen3-8B (Tinker cloud)**
 - Model: `Qwen/Qwen3-8B`
