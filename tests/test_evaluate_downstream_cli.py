@@ -1089,6 +1089,39 @@ def test_evaluate_downstream_main_requires_tinker_api_key_for_adapter_tinker(
         main()
 
 
+def test_evaluate_downstream_main_checks_tinker_api_key_before_loading_dataset(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    output_path = tmp_path / "downstream_results.jsonl"
+    missing_dataset = tmp_path / "missing.jsonl"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "evaluate_downstream.py",
+            "--dataset",
+            str(missing_dataset),
+            "--compressor",
+            "adapter_tinker",
+            "--task-model",
+            "gpt-4o-mini",
+            "--output",
+            str(output_path),
+            "--checkpoint-path",
+            "tinker://run-id/weights/step-001000",
+        ],
+    )
+    monkeypatch.setattr(
+        evaluate_downstream,
+        "get_settings",
+        lambda: SimpleNamespace(tinker_api_key=""),
+        raising=False,
+    )
+
+    with pytest.raises(RuntimeError, match="TINKER_API_KEY is required for adapter_tinker"):
+        main()
+
+
 def test_evaluate_downstream_main_wires_adapter_object_into_runner_call(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

@@ -345,6 +345,15 @@ def validate_backend_args(parser: argparse.ArgumentParser, args: argparse.Namesp
         parser.error("adapter_tinker requires --checkpoint-path")
 
 
+def validate_backend_runtime(args: argparse.Namespace) -> None:
+    if args.compressor != "adapter_tinker":
+        return
+
+    settings = get_settings()
+    if not settings.tinker_api_key:
+        raise RuntimeError("TINKER_API_KEY is required for adapter_tinker")
+
+
 async def create_async_tinker_adapter(
     checkpoint_path: str,
     api_key: str,
@@ -394,9 +403,6 @@ async def build_adapter(args: argparse.Namespace) -> Any | None:
 
     if args.compressor == "adapter_tinker":
         settings = get_settings()
-        if not settings.tinker_api_key:
-            raise RuntimeError("TINKER_API_KEY is required for adapter_tinker")
-
         return await create_async_tinker_adapter(args.checkpoint_path, settings.tinker_api_key)
 
     return None
@@ -556,6 +562,7 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
     validate_backend_args(parser, args)
+    validate_backend_runtime(args)
     asyncio.run(run(args))
 
 
