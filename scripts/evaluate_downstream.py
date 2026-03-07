@@ -487,15 +487,20 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         spent_so_far += float(result["cost_usd_full"]) + float(result["cost_usd_compressed"])
 
     all_results = existing_results + new_results
+    aggregate_summary = dict(aggregate_results(cast(list[Mapping[str, Any]], all_results)))
+    examples_completed_total = int(aggregate_summary.get("examples", 0))
+    examples_completed_this_run = len(new_results)
     summary: dict[str, Any] = {
         "dataset": str(args.dataset),
         "compressor": args.compressor,
         "task_model": args.task_model,
         "examples_loaded": len(examples),
-        "examples_evaluated": len(new_results),
+        "examples_completed_this_run": examples_completed_this_run,
+        "examples_completed_total": examples_completed_total,
+        "examples_evaluated": examples_completed_this_run,
         "resume": args.resume,
         "max_cost": args.max_cost,
-        **aggregate_results(cast(list[Mapping[str, Any]], all_results)),
+        **aggregate_summary,
     }
 
     if args.max_cost is not None:

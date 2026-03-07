@@ -353,6 +353,8 @@ def test_evaluate_downstream_main_writes_jsonl_and_default_summary_json(
     assert summary["compressor"] == "identity"
     assert summary["task_model"] == "gpt-4o-mini"
     assert summary["examples_loaded"] == 1
+    assert summary["examples_completed_this_run"] == 1
+    assert summary["examples_completed_total"] == 1
     assert summary["examples_evaluated"] == 1
     assert summary["examples"] == 1
     assert len(fake_client.prompts) == 2
@@ -398,6 +400,8 @@ def test_evaluate_downstream_main_resume_skips_existing_examples(
 
     summary = json.loads((tmp_path / "downstream_results.summary.json").read_text(encoding="utf-8"))
     assert summary["examples_loaded"] == 2
+    assert summary["examples_completed_this_run"] == 1
+    assert summary["examples_completed_total"] == 2
     assert summary["examples_evaluated"] == 1
     assert summary["examples"] == 2
     assert len(fake_client.prompts) == 2
@@ -537,6 +541,8 @@ def test_evaluate_downstream_main_completed_resume_does_not_initialize_adapter_o
 
     summary = json.loads((tmp_path / "downstream_results.summary.json").read_text(encoding="utf-8"))
     assert summary["examples_loaded"] == 1
+    assert summary["examples_completed_this_run"] == 0
+    assert summary["examples_completed_total"] == 1
     assert summary["examples_evaluated"] == 0
     assert summary["examples"] == 1
 
@@ -827,6 +833,8 @@ def test_evaluate_downstream_main_stops_before_next_example_would_exceed_max_cos
     assert [row["example_id"] for row in written] == ["ex-1"]
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["examples_loaded"] == 2
+    assert summary["examples_completed_this_run"] == 1
+    assert summary["examples_completed_total"] == 1
     assert summary["examples_evaluated"] == 1
     assert summary["examples"] == 1
 
@@ -869,6 +877,7 @@ def test_evaluate_downstream_main_honors_summary_output_override(
     assert not (tmp_path / "downstream_results.summary.json").exists()
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["compressor"] == "truncate"
+    assert summary["examples_completed_total"] == 1
     assert summary["examples"] == 1
 
 
