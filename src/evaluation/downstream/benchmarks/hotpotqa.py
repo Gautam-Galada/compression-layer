@@ -1,4 +1,5 @@
-from typing import cast
+from collections.abc import Mapping
+from typing import Any, cast
 
 from datasets import load_dataset
 
@@ -9,7 +10,7 @@ BENCHMARK_NAME = "hotpotqa"
 SOURCE_SUBSET = "distractor"
 
 
-def build_hotpotqa_example(row: dict, split: str) -> DownstreamExample:
+def build_hotpotqa_example(row: Mapping[str, Any], split: str) -> DownstreamExample:
     context = row["context"]
     titles = context["title"]
     sentence_groups = context["sentences"]

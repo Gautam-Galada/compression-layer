@@ -12,6 +12,7 @@ from src.evaluation.downstream.runner import (
     append_results_jsonl,
     build_task_prompt,
     compress_context,
+    compress_context_async,
     evaluate_examples,
     render_context,
     score_pair,
@@ -160,6 +161,21 @@ async def test_evaluate_examples_supports_async_adapter_compression() -> None:
     assert adapter.calls == ["[Doc 1]\nAlice won the match decisively."]
     assert len(client.calls) == 2
     assert "Context:\n[Doc 1]\nAlice w\n\nAnswer:" in client.calls[1]
+
+
+@pytest.mark.asyncio
+async def test_compress_context_async_supports_sync_adapter_compression() -> None:
+    class SyncAdapter:
+        def compress(self, context: str) -> str:
+            return f"sync::{context}"
+
+    compressed = await compress_context_async(
+        "alpha beta",
+        "adapter_local",
+        adapter=cast(Any, SyncAdapter()),
+    )
+
+    assert compressed == "sync::alpha beta"
 
 
 @pytest.mark.asyncio

@@ -30,6 +30,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 import numpy as np
+from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
@@ -252,9 +253,11 @@ class EquivalenceCalculator:
         self.lexical_weight = lexical_weight
         self.normalize_for_lexical = normalize_for_lexical
 
-        self._embedding_cache: dict[str, np.ndarray] | None = {} if cache_embeddings else None
+        self._embedding_cache: dict[str, NDArray[np.float64]] | None = (
+            {} if cache_embeddings else None
+        )
 
-    def _get_embedding(self, text: str) -> np.ndarray:
+    def _get_embedding(self, text: str) -> NDArray[np.float64]:
         """Get embedding, using cache if available."""
         if self._embedding_cache is not None:
             if text not in self._embedding_cache:

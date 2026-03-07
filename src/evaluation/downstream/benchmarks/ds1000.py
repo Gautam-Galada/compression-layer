@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any, cast
 
 from datasets import load_dataset
@@ -9,7 +10,7 @@ BENCHMARK_NAME = "ds1000"
 DATASET_NAME = "xlangai/DS-1000"
 
 
-def build_ds1000_example(row: dict, split: str, row_index: int) -> DownstreamExample:
+def build_ds1000_example(row: Mapping[str, Any], split: str, row_index: int) -> DownstreamExample:
     row_metadata = dict(row.get("metadata") or {})
     source_metadata = {"dataset": DATASET_NAME, "source": DATASET_NAME}
     metadata = {**row_metadata, **source_metadata}

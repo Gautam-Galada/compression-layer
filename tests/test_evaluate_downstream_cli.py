@@ -483,6 +483,58 @@ def test_evaluate_downstream_main_resume_accepts_real_output_rows(
     assert len(second_client.prompts) == 2
 
 
+def test_evaluate_downstream_main_resume_tracks_duplicate_example_id_occurrences(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    output_path = tmp_path / "downstream_results.jsonl"
+    output_path.write_text(
+        json.dumps(_result_row("ex-1", answer="Alice", cost=0.1), ensure_ascii=True) + "\n",
+        encoding="utf-8",
+    )
+    fake_client = FakeAsyncClient()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "evaluate_downstream.py",
+            "--dataset",
+            "data/eval/downstream/hotpotqa_validation_10.jsonl",
+            "--compressor",
+            "identity",
+            "--task-model",
+            "gpt-4o-mini",
+            "--output",
+            str(output_path),
+            "--resume",
+        ],
+    )
+    monkeypatch.setattr(
+        evaluate_downstream,
+        "load_examples",
+        lambda path, limit=None: [
+            _example("ex-1", "Alice"),
+            _example("ex-1", "Bob"),
+            _example("ex-2", "Bob"),
+        ],
+    )
+    monkeypatch.setattr(evaluate_downstream, "create_task_client", lambda _: fake_client)
+
+    main()
+
+    written = [json.loads(line) for line in output_path.read_text(encoding="utf-8").splitlines()]
+    assert [row["example_id"] for row in written] == ["ex-1", "ex-1", "ex-2"]
+    assert [row["full_output"] for row in written] == ["Alice", "Bob", "Bob"]
+
+    summary = json.loads((tmp_path / "downstream_results.summary.json").read_text(encoding="utf-8"))
+    assert summary["examples_loaded"] == 3
+    assert summary["examples_completed_this_run"] == 2
+    assert summary["examples_completed_total"] == 3
+    assert summary["examples_evaluated"] == 2
+    assert summary["examples"] == 3
+    assert len(fake_client.prompts) == 4
+
+
 def test_evaluate_downstream_main_completed_resume_does_not_initialize_adapter_or_task_model(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -609,6 +661,59 @@ def test_evaluate_downstream_main_rejects_incompatible_resume_row(
     with pytest.raises(
         RuntimeError,
         match="Incompatible resumed downstream result row in .*downstream_results.jsonl:1.*task_model",
+    ):
+        main()
+
+
+@pytest.mark.parametrize(
+    ("compressor", "argv_suffix", "row_extra", "expected_field"),
+    [
+        ("truncate", ["--truncate-tokens", "128"], {"truncate_tokens": 64}, "truncate_tokens"),
+        (
+            "extractive",
+            ["--extractive-chars", "512"],
+            {"extractive_chars": 256},
+            "extractive_chars",
+        ),
+    ],
+)
+def test_evaluate_downstream_main_rejects_incompatible_baseline_resume_rows(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    compressor: str,
+    argv_suffix: list[str],
+    row_extra: dict[str, object],
+    expected_field: str,
+) -> None:
+    output_path = tmp_path / "downstream_results.jsonl"
+    output_path.write_text(
+        json.dumps(_result_row("ex-1", compressor=compressor, **row_extra), ensure_ascii=True)
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "evaluate_downstream.py",
+            "--dataset",
+            "data/eval/downstream/hotpotqa_validation_10.jsonl",
+            "--compressor",
+            compressor,
+            "--task-model",
+            "gpt-4o-mini",
+            "--output",
+            str(output_path),
+            "--resume",
+            *argv_suffix,
+        ],
+    )
+    monkeypatch.setattr(evaluate_downstream, "load_examples", lambda path, limit=None: [])
+
+    with pytest.raises(
+        RuntimeError,
+        match=rf"Incompatible resumed downstream result row in .*downstream_results.jsonl:1.*{expected_field}",
     ):
         main()
 

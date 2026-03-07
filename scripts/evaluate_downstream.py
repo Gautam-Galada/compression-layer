@@ -6,14 +6,15 @@ import asyncio
 import inspect
 import json
 import sys
-from collections.abc import Callable, Mapping
+from collections import Counter
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.evaluate_tinker import create_local_generator
-from src.evaluation.downstream.dataset import load_examples
+from src.evaluation.downstream.dataset import DownstreamExample, load_examples
 from src.evaluation.downstream.runner import (
     ADAPTER_COMPRESSORS,
     ALL_COMPRESSORS,
@@ -244,6 +245,8 @@ def validate_result_compatibility(
     task_model: str,
     source: Path,
     line_number: int,
+    truncate_tokens: int | None = None,
+    extractive_chars: int | None = None,
     adapter_path: Path | None = None,
     adapter_model: str | None = None,
     checkpoint_path: str | None = None,
@@ -253,6 +256,10 @@ def validate_result_compatibility(
         "compressor": compressor,
         "task_model": task_model,
     }
+    if compressor == "truncate":
+        expected_values["truncate_tokens"] = truncate_tokens
+    if compressor == "extractive":
+        expected_values["extractive_chars"] = extractive_chars
     if compressor == "adapter_local":
         expected_values["adapter_path"] = str(adapter_path)
         expected_values["adapter_model"] = cast(Any, adapter_model)
@@ -273,6 +280,8 @@ def load_existing_results(
     dataset: Path,
     compressor: str,
     task_model: str,
+    truncate_tokens: int | None = None,
+    extractive_chars: int | None = None,
     adapter_path: Path | None = None,
     adapter_model: str | None = None,
     checkpoint_path: str | None = None,
@@ -293,6 +302,8 @@ def load_existing_results(
                     dataset=dataset,
                     compressor=compressor,
                     task_model=task_model,
+                    truncate_tokens=truncate_tokens,
+                    extractive_chars=extractive_chars,
                     adapter_path=adapter_path,
                     adapter_model=adapter_model,
                     checkpoint_path=checkpoint_path,
@@ -301,6 +312,22 @@ def load_existing_results(
                 )
             )
     return rows
+
+
+def select_pending_examples(
+    examples: list[DownstreamExample], existing_results: Sequence[Mapping[str, Any]]
+) -> list[DownstreamExample]:
+    completed_counts = Counter(str(row["example_id"]) for row in existing_results)
+    seen_counts: Counter[str] = Counter()
+    pending_examples: list[DownstreamExample] = []
+
+    for example in examples:
+        occurrence_index = seen_counts[example.id]
+        seen_counts[example.id] += 1
+        if occurrence_index >= completed_counts[example.id]:
+            pending_examples.append(example)
+
+    return pending_examples
 
 
 def create_task_client(model_name: str) -> TaskModelClientAdapter:
@@ -395,6 +422,8 @@ def estimate_example_cost_upper_bound(
             extractive_chars=extractive_chars,
             adapter=adapter,
         )
+        if inspect.isawaitable(compressed_context):
+            raise TypeError("Baseline compression must be synchronous during cost estimation")
     full_prompt = build_task_prompt(example.query, full_context)
     compressed_prompt = build_task_prompt(example.query, compressed_context)
     full_prompt_tokens = count_tokens(full_prompt)
@@ -425,6 +454,8 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             dataset=args.dataset,
             compressor=args.compressor,
             task_model=args.task_model,
+            truncate_tokens=args.truncate_tokens,
+            extractive_chars=args.extractive_chars,
             adapter_path=args.adapter_path,
             adapter_model=args.adapter_model,
             checkpoint_path=args.checkpoint_path,
@@ -432,12 +463,9 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         if args.resume
         else []
     )
-    completed_example_ids = {
-        str(row["example_id"])
-        for row in existing_results
-        if isinstance(row, Mapping) and "example_id" in row
-    }
-    pending_examples = [example for example in examples if example.id not in completed_example_ids]
+    pending_examples = select_pending_examples(
+        examples, cast(Sequence[Mapping[str, Any]], existing_results)
+    )
 
     adapter = None
     client = None
@@ -477,6 +505,10 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
 
         result = cast(dict[str, Any], example_results[0])
         result["dataset"] = str(args.dataset)
+        if args.compressor == "truncate":
+            result["truncate_tokens"] = args.truncate_tokens
+        if args.compressor == "extractive":
+            result["extractive_chars"] = args.extractive_chars
         if args.compressor == "adapter_local":
             result["adapter_path"] = str(args.adapter_path)
             result["adapter_model"] = args.adapter_model
@@ -488,7 +520,7 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
 
     all_results = existing_results + new_results
     aggregate_summary = dict(aggregate_results(cast(list[Mapping[str, Any]], all_results)))
-    examples_completed_total = int(aggregate_summary.get("examples", 0))
+    examples_completed_total = aggregate_summary["examples"]
     examples_completed_this_run = len(new_results)
     summary: dict[str, Any] = {
         "dataset": str(args.dataset),

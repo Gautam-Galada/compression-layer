@@ -30,7 +30,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from src.training.tinker_data import render_chat_example
 from src.training.train_mlx import check_mlx_available

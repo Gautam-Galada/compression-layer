@@ -5,7 +5,7 @@ import json
 from collections.abc import Awaitable, Iterable, Mapping
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Protocol, TypedDict
+from typing import Any, Literal, Protocol, TypedDict
 
 from src.evaluation.downstream.baselines import extractive_head, identity_context, truncate_tokens
 from src.evaluation.downstream.dataset import DownstreamExample, RetrievedChunk
@@ -76,6 +76,23 @@ class AsyncTaskModelClient(Protocol):
     async def complete(self, prompt: str) -> Any: ...
 
 
+AggregateMetricField = Literal[
+    "full_exact_match",
+    "compressed_exact_match",
+    "delta_exact_match",
+    "full_f1",
+    "compressed_f1",
+    "delta_f1",
+    "context_tokens_full",
+    "context_tokens_compressed",
+    "compression_ratio",
+    "latency_ms_full",
+    "latency_ms_compressed",
+    "cost_usd_full",
+    "cost_usd_compressed",
+]
+
+
 BASELINE_COMPRESSORS = ("identity", "truncate", "extractive")
 ADAPTER_COMPRESSORS = ("adapter_local", "adapter_tinker")
 ALL_COMPRESSORS = BASELINE_COMPRESSORS + ADAPTER_COMPRESSORS
@@ -106,7 +123,7 @@ def compress_context(
     truncate_tokens_limit: int = 256,
     extractive_chars: int = 1000,
     adapter: ContextAdapter | None = None,
-) -> str:
+) -> str | Awaitable[str]:
     if compressor == "identity":
         return identity_context(context)
     if compressor == "truncate":
@@ -136,8 +153,8 @@ async def compress_context_async(
         adapter=adapter,
     )
     if inspect.isawaitable(compressed):
-        return await compressed
-    return compressed
+        return str(await compressed)
+    return str(compressed)
 
 
 def score_pair(
@@ -249,11 +266,16 @@ def aggregate_results(results: list[ExampleResult | Mapping[str, Any]]) -> Summa
 
     count = len(results)
 
-    def avg(field: str) -> float:
-        return round(sum(float(result[field]) for result in results) / count, 10)
+    def metric_value(
+        result: ExampleResult | Mapping[str, Any], field: AggregateMetricField
+    ) -> float:
+        return float(result[field])
 
-    def total(field: str) -> float:
-        return round(sum(float(result[field]) for result in results), 10)
+    def avg(field: AggregateMetricField) -> float:
+        return round(sum(metric_value(result, field) for result in results) / count, 10)
+
+    def total(field: AggregateMetricField) -> float:
+        return round(sum(metric_value(result, field) for result in results), 10)
 
     return {
         "examples": count,
