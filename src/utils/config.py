@@ -123,7 +123,7 @@ class TrainingConfig(BaseSettings):
 
 def load_tinker_training_config(config_path: Path) -> TinkerTrainingConfig:
     """Load Tinker training settings from the YAML config."""
-    import yaml  # type: ignore[import-untyped]
+    import yaml
 
     from src.training import TinkerTrainingConfig
 
