@@ -588,6 +588,12 @@ def test_evaluate_downstream_main_completed_resume_does_not_initialize_adapter_o
         "create_task_client",
         lambda *_: (_ for _ in ()).throw(AssertionError("task-model init should not run")),
     )
+    monkeypatch.setattr(
+        evaluate_downstream,
+        "get_settings",
+        lambda: SimpleNamespace(tinker_api_key=""),
+        raising=False,
+    )
 
     main()
 

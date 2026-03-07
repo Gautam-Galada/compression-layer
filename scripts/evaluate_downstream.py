@@ -354,6 +354,10 @@ def validate_backend_runtime(args: argparse.Namespace) -> None:
         raise RuntimeError("TINKER_API_KEY is required for adapter_tinker")
 
 
+def should_validate_backend_runtime_before_run(args: argparse.Namespace) -> bool:
+    return args.compressor == "adapter_tinker" and (not args.resume or not args.output.exists())
+
+
 async def create_async_tinker_adapter(
     checkpoint_path: str,
     api_key: str,
@@ -402,6 +406,7 @@ async def build_adapter(args: argparse.Namespace) -> Any | None:
         return GeneratorBackedAdapter(generator)
 
     if args.compressor == "adapter_tinker":
+        validate_backend_runtime(args)
         settings = get_settings()
         return await create_async_tinker_adapter(args.checkpoint_path, settings.tinker_api_key)
 
@@ -562,7 +567,8 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
     validate_backend_args(parser, args)
-    validate_backend_runtime(args)
+    if should_validate_backend_runtime_before_run(args):
+        validate_backend_runtime(args)
     asyncio.run(run(args))
 
 
