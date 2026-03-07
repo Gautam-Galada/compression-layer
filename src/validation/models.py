@@ -88,6 +88,48 @@ class ModelClient:
 
                 self._client = genai.Client(api_key=settings.google_api_key)
 
+    async def _complete_with_metadata(
+        self,
+        prompt: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.0,  # Deterministic for validation
+        use_cache: bool = True,
+    ) -> APIResponse:
+        # Build cache key
+        cache_key = make_cache_key(
+            self.model_type.value,
+            prompt,
+            max_tokens=max_tokens,
+            temp=temperature,
+        )
+
+        # Check cache first
+        if use_cache and self.cache and (cached := self.cache.get(cache_key)):
+            return APIResponse(
+                text=str(cached["text"]),
+                input_tokens=0,
+                output_tokens=0,
+                model=self.model_type.value,
+            )
+
+        # Call API with retry
+        response = await self._call_with_retry(prompt, max_tokens, temperature)
+
+        # Cache the response
+        if use_cache and self.cache:
+            self.cache.set(cache_key, {"text": response.text})
+
+        # Log cost
+        tracker = get_cost_tracker()
+        tracker.log_call(
+            model=response.model,
+            input_tokens=response.input_tokens,
+            output_tokens=response.output_tokens,
+            operation=self.operation,
+        )
+
+        return response
+
     async def complete(
         self,
         prompt: str,
@@ -107,35 +149,19 @@ class ModelClient:
         Returns:
             Generated text response
         """
-        # Build cache key
-        cache_key = make_cache_key(
-            self.model_type.value,
-            prompt,
-            max_tokens=max_tokens,
-            temp=temperature,
-        )
-
-        # Check cache first
-        if use_cache and self.cache and (cached := self.cache.get(cache_key)):
-            return str(cached["text"])
-
-        # Call API with retry
-        response = await self._call_with_retry(prompt, max_tokens, temperature)
-
-        # Cache the response
-        if use_cache and self.cache:
-            self.cache.set(cache_key, {"text": response.text})
-
-        # Log cost
-        tracker = get_cost_tracker()
-        tracker.log_call(
-            model=response.model,
-            input_tokens=response.input_tokens,
-            output_tokens=response.output_tokens,
-            operation=self.operation,
-        )
+        response = await self._complete_with_metadata(prompt, max_tokens, temperature, use_cache)
 
         return response.text
+
+    async def complete_response(
+        self,
+        prompt: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.0,
+        use_cache: bool = True,
+    ) -> APIResponse:
+        """Generate a completion and return the structured API response."""
+        return await self._complete_with_metadata(prompt, max_tokens, temperature, use_cache)
 
     async def _call_with_retry(
         self,

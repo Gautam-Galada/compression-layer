@@ -187,6 +187,18 @@ TINKER_API_KEY=tk_...          # For Tinker cloud training/inference
 
 ## Reproduce Evaluation
 
+### Cheap Downstream Eval
+
+For the low-cost downstream workflow used during development, see
+[`docs/downstream-eval.md`](docs/downstream-eval.md).
+
+- `scripts/prepare_downstream_eval.py` is the current dataset-build entry point for
+  `hotpotqa`, `qasper`, and `ds1000`.
+- `scripts/evaluate_downstream.py` now runs paired downstream evaluations for the
+  current baselines (`identity`, `truncate`, `extractive`) and explicit learned
+  backends (`adapter_local`, `adapter_tinker`), writing per-example results plus
+  an aggregate summary.
+
 ### 1. Compression Eval (Token Ratio)
 
 Measures how much the adapter compresses input tokens.
