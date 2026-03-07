@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol, cast
 
 from rich.console import Console
 from rich.table import Table
@@ -61,6 +61,16 @@ class HarnessProtocol(Protocol):
     async def validate_pair(self, pair: CompressionPair) -> ValidationResult: ...
 
 
+class ChatTemplateTokenizer(Protocol):
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        add_generation_prompt: bool,
+        tokenize: bool,
+    ) -> str: ...
+
+
 def load_test_examples(path: Path, limit: int | None = None) -> list[EvaluationExample]:
     """Load evaluation examples from MLX chat-format JSONL."""
     examples: list[EvaluationExample] = []
@@ -99,7 +109,8 @@ def create_generator(
     from mlx_lm.sample_utils import make_sampler
 
     loaded = mlx_lm.load(model, adapter_path=str(adapter_path))
-    mlx_model, tokenizer = loaded[:2]
+    mlx_model = cast(Any, loaded[0])
+    tokenizer = cast(ChatTemplateTokenizer, loaded[1])
     sampler = make_sampler(temp=temp)
 
     def _generate(input_text: str) -> str:
