@@ -71,9 +71,40 @@ Compressor baselines:
 | `adapter_local` | Learned LoRA adapter (MLX, local) |
 | `adapter_tinker` | Learned LoRA adapter (Tinker, cloud) |
 
-> **Results pending** — run the extrinsic eval pipeline below to generate
-> baseline comparisons. See [`docs/downstream-eval.md`](docs/downstream-eval.md)
-> for the full workflow.
+> **Results** — 300 examples per benchmark, `gpt-4o-mini` as task model, seed 42.
+> Each example is evaluated twice (full context vs compressed context); deltas
+> show the accuracy cost of compression. See
+> [`docs/downstream-eval.md`](docs/downstream-eval.md) for the full workflow.
+
+**HotPotQA** (multi-hop QA, n = 300):
+
+| Compressor | Compressed EM | ΔEM | Compressed F1 | ΔF1 | Ratio | Cost |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `identity` | 0.043 | −0.003 | 0.177 | +0.000 | 1.00 | $0.129 |
+| `truncate` | 0.040 | −0.007 | 0.093 | −0.087 | 0.31 | $0.085 |
+| `extractive` | 0.030 | −0.020 | 0.068 | −0.112 | 0.20 | $0.079 |
+| `adapter_local` | 0.027 | −0.020 | 0.104 | −0.075 | 0.26 | $0.084 |
+| `adapter_tinker` | 0.010 | −0.037 | 0.067 | −0.109 | 0.31 | $0.087 |
+
+**DS1000** (code generation, n = 300):
+
+| Compressor | Compressed EM | ΔEM | Compressed F1 | ΔF1 | Ratio | Cost |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `identity` | 0.213 | 0.000 | 0.459 | +0.002 | 1.00 | $0.102 |
+| `truncate` | 0.210 | +0.003 | 0.435 | −0.021 | 0.87 | $0.094 |
+| `extractive` | 0.170 | −0.030 | 0.326 | −0.128 | 0.65 | $0.087 |
+| `adapter_local` | 0.067 | −0.143 | 0.159 | −0.301 | 0.38 | $0.079 |
+| `adapter_tinker` | 0.037 | −0.170 | 0.079 | −0.386 | 0.62 | $0.084 |
+
+Key takeaways:
+- **Identity** confirms the baseline — zero compression, near-zero delta (noise only).
+- **Truncate** preserves accuracy well on DS1000 (ratio 0.87, ΔF1 −0.02) where
+  contexts are shorter, but loses more on HotPotQA (ratio 0.31, ΔF1 −0.09) where
+  multi-hop evidence spans the full context.
+- **Learned adapters** achieve aggressive compression (0.26–0.62 ratio) but with
+  significant accuracy drops, especially on code generation. The adapter was
+  trained on conversational text, not code — domain mismatch explains the gap.
+- Qasper results pending.
 
 ### Intrinsic Equivalence (Cross-Model Semantic Fidelity)
 

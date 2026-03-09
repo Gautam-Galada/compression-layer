@@ -5,11 +5,23 @@ import argparse
 import asyncio
 import inspect
 import json
+import logging
 import sys
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, cast
+
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeRemainingColumn,
+)
+from rich.table import Table
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -29,6 +41,10 @@ from src.evaluation.downstream.runner import (
 from src.utils.config import get_settings
 from src.utils.tokenizers import count_tokens
 from src.validation.models import ModelClient, model_type_from_string
+
+console = Console()
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 RESULT_REQUIRED_FIELDS = (
     "dataset",
@@ -89,6 +105,8 @@ class GeneratorBackedAdapter:
 
 
 class AsyncTinkerAdapter:
+    MODEL_CONTEXT_WINDOW = 32768
+
     def __init__(
         self,
         *,
@@ -122,8 +140,14 @@ class AsyncTinkerAdapter:
             messages, add_generation_prompt=True, tokenize=False
         )
         input_token_ids = self._tokenizer.encode(prompt_str)
+
+        max_input_tokens = self.MODEL_CONTEXT_WINDOW - self._max_tokens
+        if len(input_token_ids) > max_input_tokens:
+            input_token_ids = input_token_ids[:max_input_tokens]
+
         input_tokens = len(input_token_ids)
         max_generation_tokens = _compute_generation_budget(input_tokens, self._max_tokens)
+
         model_input = self._tinker.ModelInput.from_ints(input_token_ids)
         sampling_params = self._tinker.SamplingParams(
             max_tokens=max_generation_tokens,
@@ -453,8 +477,116 @@ def estimate_example_cost_upper_bound(
     return total_input_cost + total_output_cost
 
 
+def print_summary(summary: dict[str, Any]) -> None:
+    """Print a detailed summary of downstream evaluation results."""
+    eval_table = Table(title="Evaluation Summary")
+    eval_table.add_column("Metric", style="cyan")
+    eval_table.add_column("Value", style="green")
+
+    eval_table.add_row("Benchmark", str(summary.get("benchmark", "—")))
+    eval_table.add_row("Compressor", summary["compressor"])
+    eval_table.add_row("Task model", summary["task_model"])
+    eval_table.add_row("Examples loaded", str(summary["examples_loaded"]))
+    eval_table.add_row("Completed (total)", str(summary["examples_completed_total"]))
+    eval_table.add_row("Completed (this run)", str(summary["examples_completed_this_run"]))
+    if summary.get("resume"):
+        eval_table.add_row("Resume", "[yellow]yes[/yellow]")
+    if summary.get("max_cost") is not None:
+        eval_table.add_row("Max cost", f"${summary['max_cost']:.2f}")
+
+    console.print(eval_table)
+
+    if summary.get("examples_completed_total", 0) == 0:
+        console.print("[dim]No examples completed — skipping accuracy and cost tables.[/dim]")
+        return
+
+    accuracy_table = Table(title="Accuracy Comparison")
+    accuracy_table.add_column("Metric", style="cyan")
+    accuracy_table.add_column("Full", style="green")
+    accuracy_table.add_column("Compressed", style="green")
+    accuracy_table.add_column("Delta", style="yellow")
+
+    def _fmt(val: Any, fmt: str = ".3f") -> str:
+        try:
+            return f"{float(val):{fmt}}"
+        except (TypeError, ValueError):
+            return "—"
+
+    def _delta_style(val: Any) -> str:
+        try:
+            v = float(val)
+        except (TypeError, ValueError):
+            return "—"
+        if v > 0:
+            return f"[green]+{v:.3f}[/green]"
+        if v < 0:
+            return f"[red]{v:.3f}[/red]"
+        return f"{v:.3f}"
+
+    accuracy_table.add_row(
+        "Exact Match",
+        _fmt(summary.get("avg_full_exact_match")),
+        _fmt(summary.get("avg_compressed_exact_match")),
+        _delta_style(summary.get("avg_delta_exact_match")),
+    )
+    accuracy_table.add_row(
+        "F1 Score",
+        _fmt(summary.get("avg_full_f1")),
+        _fmt(summary.get("avg_compressed_f1")),
+        _delta_style(summary.get("avg_delta_f1")),
+    )
+    accuracy_table.add_row("", "", "", "")
+    accuracy_table.add_row(
+        "Avg context tokens (full)",
+        _fmt(summary.get("avg_context_tokens_full"), ".0f"),
+        "",
+        "",
+    )
+    accuracy_table.add_row(
+        "Avg context tokens (compressed)",
+        "",
+        _fmt(summary.get("avg_context_tokens_compressed"), ".0f"),
+        "",
+    )
+    accuracy_table.add_row(
+        "Compression ratio",
+        "",
+        _fmt(summary.get("avg_compression_ratio"), ".2%"),
+        "",
+    )
+
+    console.print(accuracy_table)
+
+    cost_table = Table(title="Cost Summary")
+    cost_table.add_column("Metric", style="cyan")
+    cost_table.add_column("Value", style="green")
+
+    cost_full = summary.get("total_cost_usd_full", 0)
+    cost_compressed = summary.get("total_cost_usd_compressed", 0)
+    try:
+        cost_total = float(cost_full) + float(cost_compressed)
+    except (TypeError, ValueError):
+        cost_total = 0.0
+
+    cost_table.add_row("Full context cost", f"${float(cost_full):.4f}")
+    cost_table.add_row("Compressed context cost", f"${float(cost_compressed):.4f}")
+    cost_table.add_row("Total cost", f"${cost_total:.4f}")
+
+    console.print(cost_table)
+
+
 async def run(args: argparse.Namespace) -> dict[str, Any]:
     examples = load_examples(args.dataset, limit=args.limit)
+
+    console.print("\n[cyan]Downstream Evaluation[/cyan]")
+    console.print(f"  Dataset:    [cyan]{args.dataset}[/cyan]")
+    console.print(f"  Compressor: [cyan]{args.compressor}[/cyan]")
+    console.print(f"  Task model: [cyan]{args.task_model}[/cyan]")
+    console.print(f"  Examples:   [cyan]{len(examples)}[/cyan]")
+    if args.max_cost is not None:
+        console.print(f"  Max cost:   [cyan]${args.max_cost:.2f}[/cyan]")
+    if args.resume:
+        console.print("  Resume:     [yellow]enabled[/yellow]")
 
     if not args.resume and args.output.exists():
         args.output.unlink()
@@ -478,6 +610,15 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         examples, cast(Sequence[Mapping[str, Any]], existing_results)
     )
 
+    if existing_results:
+        console.print(
+            f"  Resumed:    [yellow]{len(existing_results)} completed, "
+            f"{len(pending_examples)} pending[/yellow]"
+        )
+    elif pending_examples:
+        console.print(f"  Pending:    [cyan]{len(pending_examples)}[/cyan]")
+    console.print()
+
     adapter = None
     client = None
     if pending_examples:
@@ -488,46 +629,66 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
     spent_so_far = sum(
         float(row["cost_usd_full"]) + float(row["cost_usd_compressed"]) for row in existing_results
     )
+    cost_limit_hit = False
 
-    for example in pending_examples:
-        if args.max_cost is not None:
-            estimated_next_cost = estimate_example_cost_upper_bound(
-                example,
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeRemainingColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Evaluating examples...", total=len(pending_examples))
+
+        for example in pending_examples:
+            if args.max_cost is not None:
+                estimated_next_cost = estimate_example_cost_upper_bound(
+                    example,
+                    compressor=args.compressor,
+                    task_model=args.task_model,
+                    truncate_tokens_limit=args.truncate_tokens,
+                    extractive_chars=args.extractive_chars,
+                    adapter=adapter,
+                )
+                if spent_so_far + estimated_next_cost > args.max_cost:
+                    cost_limit_hit = True
+                    break
+
+            example_results = await evaluate_examples(
+                [example],
                 compressor=args.compressor,
                 task_model=args.task_model,
+                client=cast(Any, client),
                 truncate_tokens_limit=args.truncate_tokens,
                 extractive_chars=args.extractive_chars,
                 adapter=adapter,
             )
-            if spent_so_far + estimated_next_cost > args.max_cost:
-                break
+            if not example_results:
+                progress.advance(task)
+                continue
 
-        example_results = await evaluate_examples(
-            [example],
-            compressor=args.compressor,
-            task_model=args.task_model,
-            client=cast(Any, client),
-            truncate_tokens_limit=args.truncate_tokens,
-            extractive_chars=args.extractive_chars,
-            adapter=adapter,
+            result = cast(dict[str, Any], example_results[0])
+            result["dataset"] = str(args.dataset)
+            if args.compressor == "truncate":
+                result["truncate_tokens"] = args.truncate_tokens
+            if args.compressor == "extractive":
+                result["extractive_chars"] = args.extractive_chars
+            if args.compressor == "adapter_local":
+                result["adapter_path"] = str(args.adapter_path)
+                result["adapter_model"] = args.adapter_model
+            if args.compressor == "adapter_tinker":
+                result["checkpoint_path"] = args.checkpoint_path
+            append_results_jsonl(args.output, [result])
+            new_results.append(result)
+            spent_so_far += float(result["cost_usd_full"]) + float(result["cost_usd_compressed"])
+            progress.advance(task)
+
+    if cost_limit_hit:
+        console.print(
+            f"\n[yellow]Cost limit reached: estimated next example would exceed "
+            f"${args.max_cost:.2f} budget (spent ${spent_so_far:.4f} so far)[/yellow]"
         )
-        if not example_results:
-            continue
-
-        result = cast(dict[str, Any], example_results[0])
-        result["dataset"] = str(args.dataset)
-        if args.compressor == "truncate":
-            result["truncate_tokens"] = args.truncate_tokens
-        if args.compressor == "extractive":
-            result["extractive_chars"] = args.extractive_chars
-        if args.compressor == "adapter_local":
-            result["adapter_path"] = str(args.adapter_path)
-            result["adapter_model"] = args.adapter_model
-        if args.compressor == "adapter_tinker":
-            result["checkpoint_path"] = args.checkpoint_path
-        append_results_jsonl(args.output, [result])
-        new_results.append(result)
-        spent_so_far += float(result["cost_usd_full"]) + float(result["cost_usd_compressed"])
 
     all_results = existing_results + new_results
     aggregate_summary = dict(aggregate_results(cast(list[Mapping[str, Any]], all_results)))
@@ -560,6 +721,11 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
     summary_output.write_text(
         json.dumps(summary, ensure_ascii=True, indent=2) + "\n", encoding="utf-8"
     )
+
+    print_summary(summary)
+    console.print(f"[green]Results saved to {args.output}[/green]")
+    console.print(f"[green]Summary saved to {summary_output}[/green]\n")
+
     return summary
 
 
