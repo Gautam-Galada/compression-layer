@@ -38,11 +38,49 @@ Summary of trained adapter evaluations on the full test set (2,497 examples from
 > **Token ratio** = `output_tokens / input_tokens`. Lower is better. A ratio of 34.8% means
 > the compressed output uses ~35% of the original token count.
 
-### Equivalence (Cross-Model Scoring)
+### Extrinsic Evaluation (Downstream Task Performance)
 
-Equivalence is measured using a **3-gate system**. Both the original verbose text
-and the compressed output are sent to three frontier models (Claude, GPT, Gemini),
-which perform fact-extraction tasks. The outputs are compared through three gates:
+The primary evaluation: does compressed context still let a task model answer
+correctly? Each example is evaluated twice — once with full context and once with
+compressed context — using the same task model and prompt. The delta between
+full-context and compressed-context accuracy measures the cost of compression.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/downstream-eval-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/downstream-eval-light.svg">
+    <img alt="Extrinsic Evaluation: Benchmark datasets → Paired evaluation (full vs compressed context) → Task model → Per-example scoring (EM, F1, compression ratio, cost) → Aggregate comparison" src="assets/downstream-eval-light.svg" width="100%">
+  </picture>
+</p>
+
+Supported benchmarks:
+
+| Benchmark | Task | Metric |
+| :--- | :--- | :--- |
+| [HotPotQA](https://hotpotqa.github.io/) | Multi-hop QA | Exact Match, Token F1 |
+| [Qasper](https://allenai.org/data/qasper) | Long-document QA | Exact Match, Token F1 |
+| [DS1000](https://ds1000-code-gen.github.io/) | Code generation | Exact Match, Token F1 |
+
+Compressor baselines:
+
+| Compressor | Description |
+| :--- | :--- |
+| `identity` | No compression (upper bound on accuracy) |
+| `truncate` | Hard token-limit truncation |
+| `extractive` | Top sentences by TF-IDF similarity to query |
+| `adapter_local` | Learned LoRA adapter (MLX, local) |
+| `adapter_tinker` | Learned LoRA adapter (Tinker, cloud) |
+
+> **Results pending** — run the extrinsic eval pipeline below to generate
+> baseline comparisons. See [`docs/downstream-eval.md`](docs/downstream-eval.md)
+> for the full workflow.
+
+### Intrinsic Equivalence (Cross-Model Semantic Fidelity)
+
+A diagnostic evaluation measuring whether the compressed text preserves the same
+semantic content as the original verbose text. Both are sent to three frontier
+models (Claude, GPT, Gemini) for fact-extraction tasks; the outputs are compared
+through a **3-gate system**:
 
 | Gate | Metric | Threshold | What it catches |
 | :--- | :--- | ---: | :--- |
@@ -57,7 +95,7 @@ the threshold on **every active gate**.
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/equivalence-eval-dark.svg">
     <source media="(prefers-color-scheme: light)" srcset="assets/equivalence-eval-light.svg">
-    <img alt="Equivalence Evaluation: 3-Gate Scoring — Compression pair → Frontier model (Claude/GPT/Gemini) fact extraction → 3-gate comparison (embedding, fact overlap, LLM judge) → per-model aggregation → final pass/fail verdict" src="assets/equivalence-eval-light.svg" width="100%">
+    <img alt="Intrinsic Equivalence: 3-Gate Scoring — Compression pair → Frontier model (Claude/GPT/Gemini) fact extraction → 3-gate comparison (embedding, fact overlap, LLM judge) → per-model aggregation → final pass/fail verdict" src="assets/equivalence-eval-light.svg" width="100%">
   </picture>
 </p>
 
@@ -176,9 +214,9 @@ pytest tests/ -v
 Create a `.env` file (see `.env.example`):
 
 ```bash
-ANTHROPIC_API_KEY=sk-ant-...   # For Claude equivalence eval
-OPENAI_API_KEY=sk-...          # For GPT equivalence eval
-GOOGLE_API_KEY=...             # For Gemini equivalence eval
+ANTHROPIC_API_KEY=sk-ant-...   # For Claude intrinsic eval
+OPENAI_API_KEY=sk-...          # For GPT intrinsic eval + downstream task model
+GOOGLE_API_KEY=...             # For Gemini intrinsic eval
 HF_TOKEN=hf_...               # For HuggingFace dataset access
 TINKER_API_KEY=tk_...          # For Tinker cloud training/inference
 ```
@@ -187,19 +225,82 @@ TINKER_API_KEY=tk_...          # For Tinker cloud training/inference
 
 ## Reproduce Evaluation
 
-### Cheap Downstream Eval
+### 1. Extrinsic Eval (Downstream Task Performance)
 
-For the low-cost downstream workflow used during development, see
-[`docs/downstream-eval.md`](docs/downstream-eval.md).
+The primary evaluation. Measures whether compressed context preserves task accuracy.
 
-- `scripts/prepare_downstream_eval.py` is the current dataset-build entry point for
-  `hotpotqa`, `qasper`, and `ds1000`.
-- `scripts/evaluate_downstream.py` now runs paired downstream evaluations for the
-  current baselines (`identity`, `truncate`, `extractive`) and explicit learned
-  backends (`adapter_local`, `adapter_tinker`), writing per-example results plus
-  an aggregate summary.
+**Build a dataset:**
 
-### 1. Compression Eval (Token Ratio)
+```bash
+python scripts/prepare_downstream_eval.py \
+  --benchmark hotpotqa \
+  --split validation \
+  --limit 25 \
+  --output data/eval/downstream/hotpotqa_validation_25.jsonl
+```
+
+**Run baseline comparisons** (identity, truncate, extractive):
+
+```bash
+# Identity baseline (full context, no compression — upper bound)
+python scripts/evaluate_downstream.py \
+  --dataset data/eval/downstream/hotpotqa_validation_25.jsonl \
+  --compressor identity \
+  --task-model gpt-4o-mini \
+  --output models/eval/downstream_hotpotqa25_identity_gpt4omini.jsonl \
+  --max-cost 0.50 \
+  --resume
+
+# Truncation baseline
+python scripts/evaluate_downstream.py \
+  --dataset data/eval/downstream/hotpotqa_validation_25.jsonl \
+  --compressor truncate \
+  --truncate-tokens 256 \
+  --task-model gpt-4o-mini \
+  --output models/eval/downstream_hotpotqa25_truncate_gpt4omini.jsonl \
+  --max-cost 0.50 \
+  --resume
+
+# Extractive baseline
+python scripts/evaluate_downstream.py \
+  --dataset data/eval/downstream/hotpotqa_validation_25.jsonl \
+  --compressor extractive \
+  --extractive-chars 1000 \
+  --task-model gpt-4o-mini \
+  --output models/eval/downstream_hotpotqa25_extractive_gpt4omini.jsonl \
+  --max-cost 0.50 \
+  --resume
+```
+
+**Run learned compressor** (requires adapter):
+
+```bash
+# Local MLX adapter
+python scripts/evaluate_downstream.py \
+  --dataset data/eval/downstream/hotpotqa_validation_25.jsonl \
+  --compressor adapter_local \
+  --adapter-model mlx-community/Nanbeige4.1-3B-8bit \
+  --adapter-path models/runs/mlx/.../adapter \
+  --task-model gpt-4o-mini \
+  --output models/eval/downstream_hotpotqa25_adapterlocal_gpt4omini.jsonl \
+  --max-cost 0.50 \
+  --resume
+
+# Tinker cloud adapter
+python scripts/evaluate_downstream.py \
+  --dataset data/eval/downstream/hotpotqa_validation_25.jsonl \
+  --compressor adapter_tinker \
+  --checkpoint-path "tinker://.../weights/step-004500" \
+  --task-model gpt-4o-mini \
+  --output models/eval/downstream_hotpotqa25_adaptertinker_gpt4omini.jsonl \
+  --max-cost 0.50 \
+  --resume
+```
+
+See [`docs/downstream-eval.md`](docs/downstream-eval.md) for the full workflow
+including budget rules and reporting metrics.
+
+### 2. Compression Eval (Token Ratio)
 
 Measures how much the adapter compresses input tokens.
 
@@ -227,9 +328,9 @@ python scripts/evaluate_tinker.py \
   --resume
 ```
 
-### 2. Convert to Validation Pairs
+### 3. Convert to Validation Pairs
 
-Transforms compression eval output into the format needed for equivalence testing:
+Transforms compression eval output into the format needed for intrinsic equivalence testing:
 
 ```bash
 python - <<'PY'
@@ -257,10 +358,11 @@ with src.open(encoding="utf-8") as fin, dst.open("w", encoding="utf-8") as fout:
 PY
 ```
 
-### 3. Equivalence Eval (Cross-Model Judge)
+### 4. Intrinsic Equivalence Eval (Cross-Model Semantic Fidelity)
 
-Tests whether compressed outputs produce equivalent reasoning across Claude, GPT,
-and Gemini:
+A diagnostic evaluation — tests whether compressed outputs produce equivalent
+reasoning across Claude, GPT, and Gemini. Useful for understanding *where*
+information is lost (which gate fails, which facts get dropped):
 
 ```bash
 python scripts/validate_batch.py \
@@ -289,9 +391,10 @@ python scripts/validate_batch.py \
    compress while preserving semantics
 5. **Compression Eval** — Token ratio measurement (`output_tokens / input_tokens`)
    across the held-out test set
-6. **Equivalence Eval** — The compressed text is fed to Claude, GPT, and Gemini;
-   an LLM judge scores whether the outputs are semantically equivalent to outputs
-   from the original verbose text
+6. **Extrinsic Eval** — Compressed context is substituted into downstream QA and
+   code tasks; accuracy deltas measure the real-world cost of compression
+7. **Intrinsic Equivalence** — The compressed text is fed to Claude, GPT, and
+   Gemini; a 3-gate scoring system diagnoses where semantic fidelity breaks down
 
 For full data pipeline reproduction commands, see
 [`docs/data-pipeline.md`](docs/data-pipeline.md).
@@ -329,16 +432,20 @@ python scripts/train_tinker.py \
 ```
 compression-layer/
 ├── src/
-│   ├── validation/        # Cross-model equivalence testing
+│   ├── validation/        # Cross-model intrinsic equivalence testing
+│   ├── evaluation/        # Evaluation logic
+│   │   └── downstream/    # Extrinsic eval: runner, dataset, scoring, baselines
+│   │       └── benchmarks/  # HotPotQA, Qasper, DS1000 benchmark loaders
 │   ├── generation/        # Compression pair generation
 │   ├── training/          # Tinker + MLX training pipelines
 │   ├── inference/         # Compression inference (local + cloud)
-│   ├── evaluation/        # Adapter evaluation logic
 │   └── utils/             # Tokenizers, caching, cost tracking
 ├── scripts/               # CLI entry points
 │   ├── train_tinker.py    # Training (local MLX / cloud Tinker)
 │   ├── evaluate_tinker.py # Compression ratio evaluation
-│   ├── validate_batch.py  # Equivalence evaluation
+│   ├── evaluate_downstream.py  # Extrinsic downstream evaluation
+│   ├── prepare_downstream_eval.py  # Benchmark dataset preparation
+│   ├── validate_batch.py  # Intrinsic equivalence evaluation
 │   └── ...
 ├── data/                  # Corpora and datasets (gitignored)
 ├── models/                # Checkpoints and eval artifacts (gitignored)
@@ -358,8 +465,8 @@ We welcome contributions, especially in these areas:
   structured data, mathematical notation)
 - **Model experiments** — Training adapters on different base models or with
   alternative LoRA configurations
-- **Evaluation methodology** — Improving the equivalence scoring system,
-  adding new judge models, or refining the pass/fail threshold
+- **Evaluation methodology** — Improving the intrinsic equivalence scoring,
+  adding new downstream benchmarks, or refining thresholds
 - **Dataset expansion** — Contributing to the
   [HuggingFace dataset](https://huggingface.co/datasets/Sudhendra/semantic-compression-sft)
   with new high-quality compression pairs

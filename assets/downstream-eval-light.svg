@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 540" width="920" height="540" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     color-mix(in srgb, var(--fg) 3%, var(--bg));
+    --_node-stroke:   color-mix(in srgb, var(--fg) 20%, var(--bg));
+    --_group-fill:    color-mix(in srgb, var(--fg) 2%, var(--bg));
+    --_group-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_pass:          #1a7f37;
+    --_fail:          #cf222e;
+    --_bench-fill:    color-mix(in srgb, var(--accent) 6%, var(--bg));
+    --_bench-stroke:  color-mix(in srgb, var(--accent) 30%, var(--bg));
+    --_comp-fill:     color-mix(in srgb, #bc6426 6%, var(--bg));
+    --_comp-stroke:   color-mix(in srgb, #bc6426 30%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="ah" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+
+<!-- Title -->
+<text x="460" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="var(--_text)">Extrinsic Evaluation: Downstream Task Performance</text>
+<text x="460" y="50" text-anchor="middle" font-size="11" fill="var(--_text-sec)">Full-context vs compressed-context accuracy on QA and code benchmarks</text>
+
+<!-- ═══════ STEP 1: Benchmark datasets ═══════ -->
+<text x="116" y="80" text-anchor="middle" font-size="11" font-weight="600" fill="var(--_text-muted)">Benchmark Datasets</text>
+
+<rect x="32" y="92" width="168" height="42" rx="5" fill="var(--_bench-fill)" stroke="var(--_bench-stroke)" stroke-width="0.75" />
+<text x="116" y="110" text-anchor="middle" font-size="11" font-weight="500" fill="var(--_text)">HotPotQA</text>
+<text x="116" y="124" text-anchor="middle" font-size="9" fill="var(--_text-sec)">multi-hop QA</text>
+
+<rect x="32" y="144" width="168" height="42" rx="5" fill="var(--_bench-fill)" stroke="var(--_bench-stroke)" stroke-width="0.75" />
+<text x="116" y="162" text-anchor="middle" font-size="11" font-weight="500" fill="var(--_text)">Qasper</text>
+<text x="116" y="176" text-anchor="middle" font-size="9" fill="var(--_text-sec)">long-document QA</text>
+
+<rect x="32" y="196" width="168" height="42" rx="5" fill="var(--_bench-fill)" stroke="var(--_bench-stroke)" stroke-width="0.75" />
+<text x="116" y="214" text-anchor="middle" font-size="11" font-weight="500" fill="var(--_text)">DS1000</text>
+<text x="116" y="228" text-anchor="middle" font-size="9" fill="var(--_text-sec)">code generation</text>
+
+<!-- Arrow from datasets to paired evaluation -->
+<line x1="200" y1="165" x2="248" y2="165" stroke="var(--_line)" stroke-width="1" marker-end="url(#ah)" />
+
+<!-- ═══════ STEP 2: Paired evaluation group ═══════ -->
+<rect x="248" y="68" width="440" height="214" rx="8" fill="var(--_group-fill)" stroke="var(--_group-stroke)" stroke-width="0.75" stroke-dasharray="4 2" />
+<text x="468" y="86" text-anchor="middle" font-size="11" font-weight="600" fill="var(--_text-muted)">Paired Evaluation (per example)</text>
+
+<!-- Full-context path (top) -->
+<rect x="268" y="100" width="120" height="44" rx="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="328" y="118" text-anchor="middle" font-size="10" font-weight="600" fill="var(--_text)">Full Context</text>
+<text x="328" y="133" text-anchor="middle" font-size="9" fill="var(--_text-sec)">query + context</text>
+
+<line x1="388" y1="122" x2="420" y2="122" stroke="var(--_line)" stroke-width="1" marker-end="url(#ah)" />
+
+<rect x="420" y="100" width="120" height="44" rx="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="480" y="118" text-anchor="middle" font-size="10" font-weight="600" fill="var(--_text)">Task Model</text>
+<text x="480" y="133" text-anchor="middle" font-size="9" fill="var(--_text-sec)">GPT-4o-mini</text>
+
+<line x1="540" y1="122" x2="572" y2="122" stroke="var(--_line)" stroke-width="1" marker-end="url(#ah)" />
+
+<rect x="572" y="100" width="100" height="44" rx="4" fill="color-mix(in srgb, #1a7f37 8%, var(--bg))" stroke="color-mix(in srgb, #1a7f37 30%, var(--bg))" stroke-width="0.75" />
+<text x="622" y="118" text-anchor="middle" font-size="10" font-weight="500" fill="var(--_text)">full_answer</text>
+<text x="622" y="133" text-anchor="middle" font-size="9" fill="var(--_text-sec)">+ latency, cost</text>
+
+<!-- Compressed-context path (bottom) -->
+<rect x="268" y="168" width="120" height="44" rx="4" fill="var(--_comp-fill)" stroke="var(--_comp-stroke)" stroke-width="0.75" />
+<text x="328" y="186" text-anchor="middle" font-size="10" font-weight="600" fill="var(--_text)">Compressor</text>
+<text x="328" y="200" text-anchor="middle" font-size="9" fill="var(--_text-sec)">see below</text>
+
+<line x1="388" y1="190" x2="420" y2="190" stroke="var(--_line)" stroke-width="1" marker-end="url(#ah)" />
+
+<rect x="420" y="168" width="120" height="44" rx="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="480" y="186" text-anchor="middle" font-size="10" font-weight="600" fill="var(--_text)">Same Model</text>
+<text x="480" y="200" text-anchor="middle" font-size="9" fill="var(--_text-sec)">same prompt</text>
+
+<line x1="540" y1="190" x2="572" y2="190" stroke="var(--_line)" stroke-width="1" marker-end="url(#ah)" />
+
+<rect x="572" y="168" width="100" height="44" rx="4" fill="color-mix(in srgb, var(--accent) 8%, var(--bg))" stroke="color-mix(in srgb, var(--accent) 30%, var(--bg))" stroke-width="0.75" />
+<text x="622" y="186" text-anchor="middle" font-size="10" font-weight="500" fill="var(--_text)">comp_answer</text>
+<text x="622" y="200" text-anchor="middle" font-size="9" fill="var(--_text-sec)">+ latency, cost</text>
+
+<!-- Dashed comparison bracket -->
+<line x1="622" y1="146" x2="622" y2="168" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="3 2" />
+<text x="622" y="262" text-anchor="middle" font-size="10" font-weight="600" fill="var(--_text-muted)">compare both against ground truth</text>
+
+<!-- Arrow down to scoring -->
+<line x1="468" y1="282" x2="468" y2="310" stroke="var(--_line)" stroke-width="1" marker-end="url(#ah)" />
+
+<!-- ═══════ STEP 3: Compressor variants ═══════ -->
+<text x="800" y="100" text-anchor="middle" font-size="11" font-weight="600" fill="var(--_text-muted)">Compressors</text>
+
+<rect x="720" y="112" width="160" height="32" rx="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="800" y="133" text-anchor="middle" font-size="10" fill="var(--_text)">identity (no compression)</text>
+
+<rect x="720" y="152" width="160" height="32" rx="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="800" y="173" text-anchor="middle" font-size="10" fill="var(--_text)">truncate (token limit)</text>
+
+<rect x="720" y="192" width="160" height="32" rx="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="800" y="213" text-anchor="middle" font-size="10" fill="var(--_text)">extractive (top sentences)</text>
+
+<rect x="720" y="232" width="160" height="32" rx="4" fill="var(--_comp-fill)" stroke="var(--_comp-stroke)" stroke-width="0.75" />
+<text x="800" y="253" text-anchor="middle" font-size="10" font-weight="600" fill="var(--_text)">adapter (learned)</text>
+
+<!-- ═══════ STEP 4: Per-example scoring ═══════ -->
+<rect x="128" y="310" width="680" height="100" rx="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="468" y="334" text-anchor="middle" font-size="13" font-weight="700" fill="var(--_text)">Per-Example Scoring</text>
+<text x="468" y="354" text-anchor="middle" font-size="10" fill="var(--_text-sec)">Both answers scored against the ground-truth reference</text>
+
+<!-- Metric boxes inside scoring -->
+<rect x="156" y="366" width="120" height="30" rx="4" fill="color-mix(in srgb, var(--_pass) 8%, var(--bg))" stroke="color-mix(in srgb, var(--_pass) 25%, var(--bg))" stroke-width="0.5" />
+<text x="216" y="386" text-anchor="middle" font-size="10" font-weight="600" fill="var(--_pass)">Exact Match</text>
+
+<rect x="296" y="366" width="120" height="30" rx="4" fill="color-mix(in srgb, var(--_pass) 8%, var(--bg))" stroke="color-mix(in srgb, var(--_pass) 25%, var(--bg))" stroke-width="0.5" />
+<text x="356" y="386" text-anchor="middle" font-size="10" font-weight="600" fill="var(--_pass)">Token F1</text>
+
+<rect x="436" y="366" width="140" height="30" rx="4" fill="color-mix(in srgb, var(--_pass) 8%, var(--bg))" stroke="color-mix(in srgb, var(--_pass) 25%, var(--bg))" stroke-width="0.5" />
+<text x="506" y="386" text-anchor="middle" font-size="10" font-weight="600" fill="var(--_pass)">Compression Ratio</text>
+
+<rect x="596" y="366" width="100" height="30" rx="4" fill="color-mix(in srgb, var(--_pass) 8%, var(--bg))" stroke="color-mix(in srgb, var(--_pass) 25%, var(--bg))" stroke-width="0.5" />
+<text x="646" y="386" text-anchor="middle" font-size="10" font-weight="600" fill="var(--_pass)">Cost (USD)</text>
+
+<!-- Arrow down to aggregate -->
+<line x1="468" y1="410" x2="468" y2="440" stroke="var(--_line)" stroke-width="1" marker-end="url(#ah)" />
+
+<!-- ═══════ STEP 5: Aggregate comparison ═══════ -->
+<rect x="128" y="440" width="680" height="80" rx="8" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="468" y="466" text-anchor="middle" font-size="13" font-weight="700" fill="var(--_text)">Aggregate Comparison</text>
+<text x="468" y="486" text-anchor="middle" font-size="11" fill="var(--_text-sec)">delta_EM = compressed_EM - full_EM    |    delta_F1 = compressed_F1 - full_F1</text>
+<text x="468" y="504" text-anchor="middle" font-size="10" fill="var(--_text-muted)">A good compressor keeps deltas near zero while reducing tokens and cost</text>
+</svg>
