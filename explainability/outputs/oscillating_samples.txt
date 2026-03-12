@@ -1,0 +1,1203 @@
+================================================================================
+Sample 1/67  idx=18  conf=0.281  var=0.263  max_rise=0.500  total_drop=0.781
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▁▁▁▁▆▂   
+Losses: [1.883, 1.188, 1.18, 1.219, 1.211, 1.711, 1.344, 1.062, 1.094, 1.102]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (27 words):
+I would like you to act as a computer terminal, I will type commands and you will answer with the relevant response.
+my first command is 'pwd'
+
+COMPRESSION (1 words, ratio=0.04x):
+pwd
+
+Quality flags: ⚠ over-compressed (ratio < 0.1)  ⚠ near-empty compression
+
+================================================================================
+Sample 2/67  idx=149  conf=0.498  var=0.139  max_rise=0.447  total_drop=0.160
+Shape: oscillating (spike at ckpt 5)
+Trajectory: ▇▁▂▂ █▅▂▅▄
+Losses: [0.883, 0.551, 0.641, 0.625, 0.486, 0.934, 0.793, 0.621, 0.812, 0.723]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (43 words):
+You are an AI assistant. User will you give you a task. Your goal is to complete the task as faithfully as you can. While performing the task think step-by-step and justify your steps.
+
+This is a very important discussion.
+
+Translate to Romanian
+
+COMPRESSION (10 words, ratio=0.23x):
+AI assistant | task: translate to Romanian | importance: high
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 3/67  idx=270  conf=0.406  var=0.162  max_rise=0.414  total_drop=0.410
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▅▂▂ ▅▁ ▃▂
+Losses: [1.242, 1.055, 0.883, 0.852, 0.688, 1.102, 0.824, 0.746, 0.918, 0.832]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (26 words):
+Please have the Human and the AI present their arguments for why their animal is the one that you'd want on your side in a fight.
+
+COMPRESSION (13 words, ratio=0.50x):
+Human vs AI: present arguments | why animal = ideal choice for fight
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 4/67  idx=199  conf=0.519  var=0.133  max_rise=0.363  total_drop=0.312
+Shape: oscillating (spike at ckpt 5)
+Trajectory: ▆▁▁  █▄ ▄ 
+Losses: [0.828, 0.59, 0.605, 0.562, 0.562, 0.926, 0.738, 0.543, 0.766, 0.516]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (18 words):
+Is there an internet plugin available to install that allows you to go out and fetch this information?
+
+COMPRESSION (8 words, ratio=0.44x):
+internet plugin available | install | fetch information
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 5/67  idx=218  conf=0.434  var=0.366  max_rise=0.297  total_drop=0.805
+Shape: oscillating (spike at ckpt 9)
+Trajectory: █▆▄▃▂  ▁ ▂
+Losses: [1.664, 1.383, 1.07, 0.906, 0.797, 0.555, 0.445, 0.695, 0.562, 0.859]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (32 words):
+You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
+
+Write a sentence based on "oecd ready to hold membership talks with chile"
+
+COMPRESSION (7 words, ratio=0.22x):
+OECD ready: membership talks w/ Chile imminent
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 6/67  idx=264  conf=0.316  var=0.240  max_rise=0.273  total_drop=0.438
+Shape: oscillating (spike at ckpt 1)
+Trajectory: ▄█▆▁▁▃▁   
+Losses: [1.375, 1.648, 1.516, 1.086, 1.055, 1.211, 1.039, 0.949, 0.961, 0.938]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (88 words):
+You are a teacher. Given a task, you explain in simple steps what the task is asking, any guidelines it provides and how to use those guidelines to find the answer.
+
+Detailed Instructions: The task is to generate text based of an event. For the given event, there will be a person who does the action in the event (usually PersonX). Your task is to write that persons emotional reaction to the event, i.e. how that person feels after doing the action.
+Problem:PersonX takest away the ___
+Solution:
+
+COMPRESSION (25 words, ratio=0.28x):
+teacher task: explain simple steps | guidelines → emotional reaction generation | method: PersonX action → PersonX feelings post-action | event: PersonX takes away ___
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 7/67  idx=163  conf=0.537  var=0.135  max_rise=0.271  total_drop=0.391
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▄▁▂ ▁▂ ▄▁
+Losses: [0.945, 0.715, 0.582, 0.637, 0.473, 0.574, 0.621, 0.467, 0.738, 0.555]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (64 words):
+You are an AI assistant that follows instruction extremely well. Help as much as you can.
+
+Q:What is the question to: "Life insurance is a contract between an insured (insurance policy holder) and an insurer , where the insurer promises to pay a designated beneficiary a sum of money (the "benefits") upon the death of the insured person."? The topic is Life insurance.
+A:
+
+COMPRESSION (17 words, ratio=0.27x):
+Life insurance: contract | insured (policy holder) ↔ insurer | insurer pays beneficiary sum upon insured death
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 8/67  idx=113  conf=0.446  var=0.155  max_rise=0.270  total_drop=0.426
+Shape: oscillating (spike at ckpt 5)
+Trajectory: ▇█▇▄▂▇▃▂▁ 
+Losses: [0.984, 1.023, 0.984, 0.797, 0.715, 0.984, 0.785, 0.703, 0.664, 0.559]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (51 words):
+You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.
+
+Is the sentiment of the following sentence positive or negative (see options at the end)?
+i 'd recommend waiting for dvd and just skipping straight to her scenes . 
+Choices: --negative --positive
+
+COMPRESSION (24 words, ratio=0.47x):
+sentiment: positive | explanation: assistant recommends waiting for DVD + skipping straight to scenes | implies preference for experience | "recommend" = positive action
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 9/67  idx=53  conf=0.449  var=0.151  max_rise=0.258  total_drop=0.500
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▄▂▁▂▆▂ ▂ 
+Losses: [1.133, 0.898, 0.773, 0.703, 0.758, 1.016, 0.773, 0.648, 0.781, 0.633]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (18 words):
+Where can I learn more about him? Can you suggest any books worth reading or museums worth visiting?
+
+COMPRESSION (10 words, ratio=0.56x):
+learn more about him | book suggestions | museum visits
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 10/67  idx=244  conf=0.594  var=0.137  max_rise=0.234  total_drop=0.158
+Shape: oscillating (spike at ckpt 5)
+Trajectory: ▃ ▁▄▃▇█▁▁ 
+Losses: [0.523, 0.387, 0.459, 0.59, 0.527, 0.762, 0.785, 0.453, 0.449, 0.365]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (33 words):
+Q:On a scale of 1-5 (with 1 being least favorable and 5 being most favorable), how would you rate this review? "Please add persian language because all most efficinet from iran. Thanks."
+A:
+
+COMPRESSION (18 words, ratio=0.55x):
+review: "Please add persian language because all most efficinet from iran. Thanks." | rating: 1-5 | question: rate
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 11/67  idx=255  conf=0.555  var=0.127  max_rise=0.223  total_drop=0.219
+Shape: oscillating (spike at ckpt 9)
+Trajectory: █▅▃▃▃▅   ▄
+Losses: [0.848, 0.688, 0.609, 0.602, 0.582, 0.695, 0.459, 0.443, 0.406, 0.629]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (109 words):
+How did architecture evolve during the medieval period in Europe?
+
+It's interesting how religious architecture dominated the period. Were there any notable examples of secular architecture that emerged during that time?
+
+It's fascinating how castles served as both defensive fortifications and ornate structures. Do any of these castles still exist today?
+
+I've always wanted to visit a medieval castle. Which one would you recommend the most?
+
+I think I might go for Neuschwanstein Castle. The Bavarian Alps sound like a breathtaking view.
+
+That's cool that Neuschwanstein Castle is the inspiration for Sleeping Beauty! I'm even more excited to visit now. Do you know any fun facts about the castle?
+
+COMPRESSION (41 words, ratio=0.38x):
+medieval Europe architecture evolution:
+
+religious architecture dominant | secular examples limited | castles: defensive + ornate structures | some still exist today
+
+castle visit recommendation: Neuschwanstein @ Bavarian Alps | inspiration: Sleeping Beauty | fun facts: exists today | breathtaking views
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 12/67  idx=155  conf=0.564  var=0.160  max_rise=0.219  total_drop=0.367
+Shape: oscillating (spike at ckpt 8)
+Trajectory: ▇▁▁▁▃▆█ ▃▁
+Losses: [0.836, 0.469, 0.469, 0.48, 0.57, 0.742, 0.852, 0.371, 0.59, 0.469]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (49 words):
+You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
+
+Generate a short summary this sentence:
+one palestinian was killed tuesday at a refugee camp in central gaza strip by israeli troops gunfire , palestinian medical sources reported .
+
+Summary:
+
+COMPRESSION (16 words, ratio=0.33x):
+Palestinian killed @ refugee camp central Gaza Strip | Israeli troops gunfire | source: Palestinian medical
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 13/67  idx=201  conf=0.563  var=0.119  max_rise=0.219  total_drop=0.324
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▃  ▂▁▆▅▃▁
+Losses: [0.805, 0.605, 0.443, 0.434, 0.562, 0.496, 0.715, 0.703, 0.574, 0.48]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (57 words):
+- 4 garlic cloves, minced
+
+This herb mixture sounds great! Can you give me some ideas for how to use it in different dishes?
+
+Can you suggest some more ways to use the herb mixture in vegetarian dishes?
+
+These ideas are amazing! Can you please suggest some recipes that feature this herb mixture as a main ingredient?
+
+COMPRESSION (17 words, ratio=0.30x):
+4 garlic cloves, minced | herb mixture | usage ideas | vegetarian dishes | main ingredient recipes
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 14/67  idx=266  conf=0.448  var=0.238  max_rise=0.199  total_drop=0.652
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▆▅▂▂ ▂ ▁ 
+Losses: [1.289, 1.18, 1.047, 0.766, 0.754, 0.559, 0.758, 0.629, 0.684, 0.637]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (41 words):
+Those are great suggestions. If I had to choose just one, I think I would choose the ability to teleport. The convenience and flexibility of being able to instantly travel to any location would be incredibly useful in many different situations.
+
+COMPRESSION (20 words, ratio=0.49x):
+great suggestions | teleport choice #1 | ∵ convenience + flexibility → instant travel any location | useful: many situations
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 15/67  idx=133  conf=0.426  var=0.092  max_rise=0.188  total_drop=0.230
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▅▃▂▁▆▅ ▂▂
+Losses: [1.031, 0.918, 0.848, 0.801, 0.773, 0.961, 0.918, 0.715, 0.801, 0.801]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (28 words):
+You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
+
+Translate the following sentence to Russian:
+Henri Chapu
+
+Russian:
+
+COMPRESSION (10 words, ratio=0.36x):
+Henri Chapu | AI assistant | translation task → Russian
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 16/67  idx=177  conf=0.443  var=0.196  max_rise=0.188  total_drop=0.453
+Shape: oscillating (spike at ckpt 4)
+Trajectory: ▇█▆ ▃▄    
+Losses: [1.117, 1.133, 1.055, 0.664, 0.852, 0.895, 0.676, 0.637, 0.637, 0.664]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (21 words):
+Can you rephrase this email in order to be more apologetic for the reschedule as it is an important meeting ?
+
+COMPRESSION (9 words, ratio=0.43x):
+rephrase email | more apologetic reschedule ∵ important meeting
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 17/67  idx=87  conf=0.550  var=0.124  max_rise=0.176  total_drop=0.363
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▃▁ ▃▇▂   
+Losses: [0.844, 0.637, 0.562, 0.512, 0.637, 0.812, 0.574, 0.49, 0.5, 0.48]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (20 words):
+What are the components of the trolley problem that would allow you to make a decision for that particular case?
+
+COMPRESSION (4 words, ratio=0.20x):
+trolley problem decision components:
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 18/67  idx=216  conf=0.455  var=0.135  max_rise=0.172  total_drop=0.324
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▅▃▂▂▁▁ ▂▂
+Losses: [1.102, 0.969, 0.82, 0.75, 0.766, 0.707, 0.684, 0.609, 0.781, 0.777]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (22 words):
+No, that isn't possible. I'm right, and you should apologize for questioning my logic.
+
+(Does that get my point across, at all?)
+
+COMPRESSION (14 words, ratio=0.64x):
+No: impossible | I'm correct | you apologize for questioning logic | point across?
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 19/67  idx=16  conf=0.662  var=0.150  max_rise=0.170  total_drop=0.527
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▄▁▁▂ ▃   
+Losses: [0.805, 0.551, 0.385, 0.365, 0.418, 0.307, 0.477, 0.334, 0.316, 0.277]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (75 words):
+The Adobe World Headquarters is the corporate headquarters of Adobe Systems, located in San Jose, California.
+
+The buildings are known for their green design. The West Tower is listed as an Energy Star labeled building by the U.S. Environmental Protection Agency. In 2006, all three towers were awarded Leadership in Energy and Environmental Design (LEED) Platinum certification by the United States Green Building Council for environmental sustainability.
+
+Where is the corporate headquarters of Adobe Systems?
+
+COMPRESSION (32 words, ratio=0.43x):
+Adobe Systems HQ @ San Jose, California | green design | West Tower: Energy Star EPA | 2006: LEED Platinum certification (all 3 towers) by US Green Building Council | environmental sustainability
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 20/67  idx=269  conf=0.374  var=0.144  max_rise=0.168  total_drop=0.469
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▄  ▁▃▆▄▄ 
+Losses: [1.258, 1.055, 0.844, 0.844, 0.887, 0.996, 1.164, 1.039, 1.055, 0.789]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (34 words):
+Now could you please also show me how to download a file? Is there a way to automatically handle disconnects during the download process or do I have to do it in my code?
+
+COMPRESSION (12 words, ratio=0.35x):
+download file | auto-reconnect during download | manual handling required in code
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 21/67  idx=3  conf=0.500  var=0.091  max_rise=0.164  total_drop=0.234
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▅▁▁▂▇▃ ▃▁
+Losses: [0.859, 0.773, 0.625, 0.625, 0.664, 0.828, 0.695, 0.57, 0.703, 0.625]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (24 words):
+August (2001), is the first novel by author Gerard Woodward. It was shortlisted for Whitbread Book Award (2001).
+
+Given this paragraph, who wrote "August?"
+
+COMPRESSION (4 words, ratio=0.17x):
+"August" author: Gerard Woodward
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 22/67  idx=86  conf=0.505  var=0.111  max_rise=0.164  total_drop=0.305
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▄▄▂ ▃▂▁▂▂
+Losses: [0.938, 0.781, 0.777, 0.656, 0.531, 0.695, 0.633, 0.582, 0.656, 0.633]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (45 words):
+The above 7 steps seem like nearly a full time job, and seem to require adopting a lot of trust of non-trusted external corporate infrastructure at significant cost. I would prefer a slimmer and more self-reliant approach. Can you retry answering with that in mind?
+
+COMPRESSION (20 words, ratio=0.44x):
+7 steps → full-time job | requires: trust external corp infrastructure @ significant cost | prefer: slimmer + self-reliant approach
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 23/67  idx=33  conf=0.599  var=0.117  max_rise=0.162  total_drop=0.385
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▃▃ ▂ ▂▁▁ 
+Losses: [0.828, 0.555, 0.559, 0.436, 0.512, 0.389, 0.551, 0.477, 0.447, 0.443]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (30 words):
+The Runner is the stateless orchestration engine that manages agent execution.
+It does not hold conversation history in memory; instead, it relies on services
+like , , and for persistence.
+
+COMPRESSION (17 words, ratio=0.57x):
+Runner | stateless orchestration engine | manages agent execution | no memory:conversation history | persistence via: [services]
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 24/67  idx=7  conf=0.623  var=0.065  max_rise=0.156  total_drop=0.125
+Shape: oscillating (spike at ckpt 4)
+Trajectory: █▂▄ ▆▄▂  ▃
+Losses: [0.598, 0.469, 0.508, 0.398, 0.555, 0.512, 0.445, 0.393, 0.408, 0.473]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (117 words):
+Write a story about a person who is a game developer and must create a game that will be loved by all.
+
+It's amazing how Alex created a game that was loved by everyone. I wonder what inspired him to come up with the concept of 'The Legend of the Lost City'?
+
+I can only imagine the amount of pressure Alex must have been under to create a game that would be loved by everyone. The gaming industry can be brutal, and the competition is fierce. But Alex's determination and hard work paid off. I wonder if he has any other ideas for future games that can match the success of 'The Legend of the Lost City'?
+
+COMPRESSION (42 words, ratio=0.36x):
+Alex | game developer | creates game loved by all | "The Legend of the Lost City" concept | inspiration: ? | pressure: high ∵ industry brutal + competition fierce | outcome: success ∵ determination + hard work | future games: ?
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 25/67  idx=76  conf=0.712  var=0.068  max_rise=0.152  total_drop=0.219
+Shape: oscillating (spike at ckpt 4)
+Trajectory: █▅▁ ▅▂▂▂▁ 
+Losses: [0.479, 0.408, 0.303, 0.268, 0.42, 0.316, 0.34, 0.324, 0.297, 0.26]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (38 words):
+You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.
+
+Translate the following sentence to French:
+Practice often focuses on attribution of responsibility rather than on attribution of conduct.
+
+COMPRESSION (28 words, ratio=0.74x):
+Practice often focuses on responsibility attribution vs conduct attribution | French translation: "La pratique met souvent l'accent sur l'attribution de la responsabilité plutôt que sur l'attribution du comportement."
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 26/67  idx=90  conf=0.753  var=0.065  max_rise=0.150  total_drop=0.203
+Shape: oscillating (spike at ckpt 4)
+Trajectory: █▃▁ ▆▂▂ ▂ 
+Losses: [0.418, 0.305, 0.241, 0.232, 0.383, 0.271, 0.289, 0.215, 0.289, 0.215]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (44 words):
+You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
+
+the cookies used to collect these data are both first- and third-party cookies, and include data on traffic and visitors.
+Capitalize this past sentence correctly.
+
+COMPRESSION (19 words, ratio=0.43x):
+cookies used to collect these data are both first- and third-party cookies, and include data on traffic and visitors.
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 27/67  idx=44  conf=0.428  var=0.117  max_rise=0.148  total_drop=0.328
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▇▃▂▁ ▃▃▁▁
+Losses: [1.086, 1.039, 0.875, 0.828, 0.781, 0.699, 0.848, 0.883, 0.766, 0.758]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (24 words):
+You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.
+
+Write a sentence in Spanish.
+
+COMPRESSION (12 words, ratio=0.50x):
+You: Write a sentence in Spanish.
+
+Assistant: español sentence: "Hola, ¿cómo estás?"
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 28/67  idx=36  conf=0.470  var=0.088  max_rise=0.145  total_drop=0.270
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▁▁▃▃▇▃ ▃ 
+Losses: [0.918, 0.691, 0.691, 0.773, 0.762, 0.906, 0.762, 0.668, 0.762, 0.648]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (56 words):
+You are an AI assistant. User will you give you a task. Your goal is to complete the task as faithfully as you can. While performing the task think step-by-step and justify your steps.
+
+Given the fact "refraction is when light bends", what is the answer to the question or completion "A light is refracted when"
+
+COMPRESSION (4 words, ratio=0.07x):
+refraction | light bends
+
+Quality flags: ⚠ over-compressed (ratio < 0.1)
+
+================================================================================
+Sample 29/67  idx=273  conf=0.529  var=0.079  max_rise=0.145  total_drop=0.164
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▄▃▃ ▃▁ ▄▃
+Losses: [0.82, 0.684, 0.645, 0.641, 0.535, 0.645, 0.574, 0.531, 0.676, 0.656]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (57 words):
+Can you name the most recent Triple Crown-winning horse in horse racing?
+
+Oh yeah, I remember now! Do you know what year Justify won the Triple Crown?
+
+Wow, it's hard to believe it's been three years already since Justify won the Triple Crown. Have there been any horses since then that came close to winning it again?
+
+COMPRESSION (12 words, ratio=0.21x):
+Triple Crown winner: Justify | won: 2018 | closest successors: none since
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 30/67  idx=291  conf=0.379  var=0.100  max_rise=0.145  total_drop=0.172
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █  ▂▂▅▃▁▃▄
+Losses: [1.188, 0.836, 0.855, 0.93, 0.941, 1.086, 0.973, 0.914, 1.008, 1.016]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (97 words):
+Write a comprehensive essay that discusses the various benefits of promoting and fostering innovation and creativity in team environments. Also, explore various strategies and tactics that can be used to encourage team members to share their unique ideas and innovative solutions. Additionally, highlight the role of leadership in creating an environment that fosters innovation, and provide examples of organizations that have successfully created innovative team environments. Your essay should be well-structured and supported by relevant evidence and examples.
+
+Can you add some specific examples of recognition programs that organizations can use to reward innovative ideas and solutions?
+
+COMPRESSION (16 words, ratio=0.16x):
+Essay: Innovation + Creativity in Team Environments | Benefits + Strategies + Leadership Role + Examples
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 31/67  idx=180  conf=0.540  var=0.176  max_rise=0.141  total_drop=0.494
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▆▃▃  ▂ ▁ 
+Losses: [0.988, 0.906, 0.684, 0.676, 0.484, 0.449, 0.59, 0.508, 0.523, 0.494]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (51 words):
+I really do appreciate the suggestions! We will make sure to definitely consider some or even all of these ideas for my ten year old's birthday celebration. I really think that these ideas can provide great times for my child and their friends, and I want to thank you Open Assistant!
+
+COMPRESSION (20 words, ratio=0.39x):
+Appreciate suggestions | will consider: some/all for 10yr-old birthday | ideas → great times for child+friends | thank Open Assistant
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 32/67  idx=226  conf=0.538  var=0.105  max_rise=0.139  total_drop=0.289
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▅▄▄▃ ▃   
+Losses: [0.824, 0.734, 0.695, 0.668, 0.633, 0.498, 0.637, 0.504, 0.516, 0.535]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (99 words):
+How does the idea of the Astral Plane relate to the concept of imagination?: The Astral Plane is the land of dreams and the world of imagination. It is a timeless place where all things are possible and you create your own reality. The restaurant is set in a charming townhouse with parachutes billowing on the ceilings, one finds brilliant arrays of fragrant cut flowers and soft tapered candlelight.
+
+That's interesting. Can you tell me more about the Astral Plane and how it relates to spiritual practices?
+
+Can you suggest any techniques to access the Astral Plane during meditation?
+
+COMPRESSION (77 words, ratio=0.78x):
+Astral Plane | imagination concept | dreams realm | timeless | all things possible | self-created reality | restaurant @ townhouse | parachutes billowing ceilings | fragrant cut flowers arrays | soft tapered candlelight
+
+Spiritual practices connection: Astral Plane → imagination → consciousness expansion → transcendent experiences
+
+Meditation techniques access Astral Plane:
+- breathwork + visualization → astral projection
+- intention setting → dream journaling
+- energy focus → chakra alignment
+- guided meditation → astral navigation
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 33/67  idx=69  conf=0.447  var=0.169  max_rise=0.137  total_drop=0.504
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▃▂   ▂▁ ▁
+Losses: [1.266, 0.938, 0.82, 0.715, 0.664, 0.715, 0.852, 0.773, 0.672, 0.762]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (49 words):
+You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.
+
+Translate the following sentence to German:
+Surface wave touch screen panels can be damaged by outside elements. Contaminants on the surface can also interfere with the functionality of the touchscreen.
+
+COMPRESSION (17 words, ratio=0.35x):
+Surface wave touch screen panels | damageable by outside elements | surface contaminants → interfere touchscreen functionality
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 34/67  idx=14  conf=0.387  var=0.180  max_rise=0.133  total_drop=0.246
+Shape: oscillating (spike at ckpt 9)
+Trajectory: ▆█▄▂▃▂ ▁▂▃
+Losses: [1.227, 1.305, 1.07, 0.906, 0.957, 0.883, 0.691, 0.793, 0.848, 0.98]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (27 words):
+Great! Can you recommend more horror movies with a sci-fi theme like Alien? I really want to *feel* like a pitiful human cowering from the Zerg horde
+
+COMPRESSION (13 words, ratio=0.48x):
+horror+sci-fi recommendations | similar: Alien | want: pitiful human feeling vs Zerg horde
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 35/67  idx=196  conf=0.383  var=0.222  max_rise=0.133  total_drop=0.633
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▄▂ ▁ ▁ ▁▁
+Losses: [1.531, 1.242, 1.039, 0.855, 0.863, 0.766, 0.898, 0.852, 0.863, 0.898]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (21 words):
+Let's break that down step by step, and explain all the concepts and context so I can better understand your answer.
+
+COMPRESSION (9 words, ratio=0.43x):
+request: step-by-step breakdown + concept/context explanation → better understanding
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 36/67  idx=248  conf=0.558  var=0.116  max_rise=0.131  total_drop=0.434
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▄▂▁▂ ▂▂▁ 
+Losses: [0.883, 0.676, 0.598, 0.523, 0.586, 0.479, 0.609, 0.559, 0.535, 0.449]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (82 words):
+What are the necessary steps for a startup business owner to secure the necessary funding and resources?
+
+Do you have any tips on how to make my pitch more effective?
+
+I'm feeling more confident about my pitch now. Do you have any advice on how to handle difficult questions or objections from investors during the pitch?
+
+I'm definitely going to practice my pitch more and prepare for any objections. Do you have any resources or tools you'd recommend for finding potential investors?
+
+COMPRESSION (51 words, ratio=0.62x):
+startup funding steps: secure funding/resources | owner actions
+
+pitch effectiveness tips: structure + clarity + data + story | investor pain point alignment
+
+investor objection handling: anticipate + reframe + pivot | maintain confidence
+
+investor resource tools: AngelList | Crunchbase | LinkedIn | pitch decks | investor databases | startup accelerators
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 37/67  idx=251  conf=0.580  var=0.072  max_rise=0.131  total_drop=0.207
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▃▄▂▂▄▁ ▃▂
+Losses: [0.715, 0.543, 0.578, 0.516, 0.516, 0.602, 0.492, 0.436, 0.566, 0.508]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (60 words):
+You are an AI assistant. User will you give you a task. Your goal is to complete the task as faithfully as you can. While performing the task think step-by-step and justify your steps.
+
+Acordul a fost semnat la 14 iulie 2010 şi acoperă aspecte legate de siguranţă, impozitarea carburantului pentru aviaţie, normele de concurenţă etc.
+
+Translate to English
+
+English:
+
+COMPRESSION (11 words, ratio=0.18x):
+agreement signed 14/07/2010 | covers: safety, fuel taxation aviation, competition rules
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 38/67  idx=11  conf=0.637  var=0.086  max_rise=0.129  total_drop=0.285
+Shape: oscillating (spike at ckpt 6)
+Trajectory: █▅▂▃▁ ▄▁  
+Losses: [0.637, 0.559, 0.447, 0.477, 0.404, 0.375, 0.504, 0.398, 0.387, 0.352]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (28 words):
+Are there any sorting algorithms suitable for sorting both short and long inputs? Eg, they have a good computational complexity, but also a fast constant factor as well.
+
+COMPRESSION (12 words, ratio=0.43x):
+sorting algorithms: short+long inputs | good computational complexity + fast constant factor
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 39/67  idx=208  conf=0.486  var=0.141  max_rise=0.129  total_drop=0.336
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▄ ▁ ▁  ▃▂
+Losses: [1.078, 0.867, 0.609, 0.68, 0.625, 0.664, 0.602, 0.652, 0.781, 0.742]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (127 words):
+You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
+
+Read this and answer the question
+
+Despite significant European success during the 1970s and early 1980s, the late '80s had marked a low point for English football. Stadiums were crumbling, supporters endured poor facilities, hooliganism was rife, and English clubs were banned from European competition for five years following the Heysel Stadium disaster in 1985. The Football League First Division, which had been the top level of English football since 1888, was well behind leagues such as Italy's Serie A and Spain's La Liga in attendances and revenues, and several top English players had moved abroad.
+
+Had the Football League First Division ever been in the top level?
+
+COMPRESSION (15 words, ratio=0.12x):
+English football top level: Football League First Division | since 1888 | never changed status
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 40/67  idx=5  conf=0.597  var=0.115  max_rise=0.125  total_drop=0.395
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▂   ▂ ▁▁ 
+Losses: [0.844, 0.543, 0.459, 0.459, 0.438, 0.562, 0.449, 0.5, 0.512, 0.449]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (31 words):
+You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
+
+Write a sentence based on this summary: utah banker facing drug charges
+
+COMPRESSION (5 words, ratio=0.16x):
+Utah banker facing drug charges
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 41/67  idx=20  conf=0.688  var=0.078  max_rise=0.125  total_drop=0.277
+Shape: oscillating (spike at ckpt 4)
+Trajectory: █▃▁ ▄▄▃▁▁ 
+Losses: [0.555, 0.402, 0.314, 0.305, 0.43, 0.424, 0.396, 0.336, 0.332, 0.277]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (39 words):
+You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.
+
+Remove the spaces from the following sentence: After some 50 meters I discovered that the judge wasn't following us anymore.
+
+COMPRESSION (13 words, ratio=0.33x):
+After some 50 meters I discovered that the judge wasn't following us anymore.
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 42/67  idx=17  conf=0.416  var=0.225  max_rise=0.121  total_drop=0.680
+Shape: oscillating (spike at ckpt 9)
+Trajectory: █▄▄▁▃▁▁  ▁
+Losses: [1.438, 1.055, 1.078, 0.832, 0.941, 0.793, 0.77, 0.707, 0.637, 0.758]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (28 words):
+With the rise of large language models, ChatGPT has changed the way many people work, and AI is getting more and more powerful. Will it eventually replace humans?
+
+COMPRESSION (16 words, ratio=0.57x):
+LLMs → ChatGPT revolutionizes work methods | AI power ↑↑ | will AI replace humans eventually?
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 43/67  idx=72  conf=0.658  var=0.040  max_rise=0.119  total_drop=0.100
+Shape: oscillating (spike at ckpt 8)
+Trajectory: ▇▂▃▄▄ ▁ █▁
+Losses: [0.484, 0.402, 0.42, 0.439, 0.432, 0.375, 0.398, 0.369, 0.488, 0.385]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (230 words):
+San Francisco International Airport (IATA: SFO, ICAO: KSFO, FAA LID: SFO) is an international airport in an unincorporated area of San Mateo County, 13 miles (21 km) south of Downtown San Francisco. It has flights to points throughout North America and is a major gateway to Europe, the Middle East, Asia, and Oceania.
+
+SFO is the largest airport in the San Francisco Bay Area and the second-busiest in California, after Los Angeles International Airport (LAX). In 2017, it was the seventh-busiest airport in the United States and the 24th-busiest in the world by passenger count. It is the fifth-largest hub for United Airlines, which operates out of Terminal 3 and the International Terminal. SFO functions as United's primary transpacific gateway. Additionally, SFO is a major maintenance hub for United Airlines and houses the SFO Museum that was created in 1980, the first museum in an international airport. It also serves as a hub for Alaska Airlines, which operates in Terminal 2.
+
+The airpor
+... [truncated, 430 chars remaining]
+
+COMPRESSION (99 words, ratio=0.43x):
+SFO | IATA: SFO | ICAO: KSFO | FAA LID: SFO | location: unincorporated San Mateo County | distance: 13mi S of Downtown SF | operations: global (N.America + Europe/Middle East/Asia/Oceania) | ranking: largest Bay Area | #2 busiest CA (after LAX) | 2017: #7 US busiest, #24 global by passengers | United Airlines: #5 hub @ Terminal 3 + Intl Terminal | primary transpacific gateway | maintenance hub | SFO Museum 1980 (1st airport museum) | Alaska Airlines hub @ Terminal 2 | owner/operator: City/County SF | ZIP: SF assigned | SF Airport Commission 1999-2004: SFO Enterprises Inc.
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 44/67  idx=75  conf=0.535  var=0.287  max_rise=0.117  total_drop=0.797
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▇▁     ▁ 
+Losses: [1.25, 1.203, 0.59, 0.539, 0.551, 0.482, 0.473, 0.473, 0.59, 0.453]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (46 words):
+You are an AI assistant. User will you give you a task. Your goal is to complete the task as faithfully as you can. While performing the task think step-by-step and justify your steps.
+
+Produce a sentence which mentions all of these concepts: cling, tree, trunk
+
+COMPRESSION (6 words, ratio=0.13x):
+sentence: cling | tree | trunk
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 45/67  idx=132  conf=0.562  var=0.149  max_rise=0.117  total_drop=0.375
+Shape: oscillating (spike at ckpt 9)
+Trajectory: █▆▅▅▃▂▁▂ ▁
+Losses: [0.855, 0.793, 0.68, 0.68, 0.551, 0.492, 0.469, 0.512, 0.363, 0.48]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (48 words):
+You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.
+
+Translate "Importacion y stock de repuestos originales y alternativos para maquinaria pesada somos importadores directos de la marca cat, komatsu y jhoon deere asi como." from Spanish to English.
+
+COMPRESSION (19 words, ratio=0.40x):
+Importation + stock: spare parts originals + alternatives | heavy machinery | direct importers: CAT, Komatsu, John Deere brands
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 46/67  idx=257  conf=0.660  var=0.065  max_rise=0.117  total_drop=0.178
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▅▄▅▄▁▃ ▃▂
+Losses: [0.539, 0.453, 0.436, 0.479, 0.447, 0.354, 0.391, 0.301, 0.418, 0.361]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (71 words):
+Zijldijk has three churches. The Mennomite church was built in 1772 in a non conspicuous barn-like building. It is still in use as a church. The Dutch Reformed church has been reconstructed as a village house. The Reformed Church was constructed in 1886, and nowadays serves as a care facility.
+
+Given the passage about churches built in the village of Zijldijk in the Netherlands, when was the only running church built?
+
+COMPRESSION (32 words, ratio=0.45x):
+Zijldijk | 3 churches | Mennomite 1772 (barn-like) | still active | Dutch Reformed → village house | Reformed 1886 → care facility
+
+Q: when was only running church built?
+
+A: 1772
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 47/67  idx=96  conf=0.401  var=0.292  max_rise=0.113  total_drop=0.848
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▅▂▁ ▁    
+Losses: [1.625, 1.375, 1.023, 0.824, 0.801, 0.863, 0.738, 0.688, 0.801, 0.777]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (32 words):
+You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.
+
+Write a positive yelp review (Select from the following.
++ negative;
++ positive;).
+
+COMPRESSION (3 words, ratio=0.09x):
+positive Yelp review:
+
+Quality flags: ⚠ over-compressed (ratio < 0.1)
+
+================================================================================
+Sample 48/67  idx=98  conf=0.573  var=0.096  max_rise=0.113  total_drop=0.299
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▅▃▃▃▁▁ ▂▁
+Losses: [0.781, 0.664, 0.586, 0.562, 0.562, 0.5, 0.504, 0.426, 0.539, 0.482]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (130 words):
+Posted on 16th November 2009 8th September 2015 By Benjamin L.
+That time has come that Sonassi is looking for some additional staff to help our day to day running. We're hoping to pick a few happy developers from the unemployed-recession pile and take them under our wing.
+Whether you are an experienced developer or you have some mild experience, we might well be interested - as long as you have had some experience in the below technologies.
+What are the benefits of working for Sonassi as a developer and what type of work will be involved in the day-to-day operations?
+
+Can you provide me with the link to Sonassi's official website?
+
+Can you please tell me what are the technologies that Sonassi is looking for in their potential developers?
+
+COMPRESSION (45 words, ratio=0.35x):
+Sonassi hiring | posted: 16/11/2009 → 08/09/2015 | by Benjamin L.
+
+Seeking dev staff | "happy developers from unemployed-recession pile" | experienced + mild experience acceptable | req: below technologies
+
+Benefits: not specified | work: day-to-day operations
+
+Tech req: not listed
+
+Website link: not provided
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 49/67  idx=136  conf=0.384  var=0.149  max_rise=0.113  total_drop=0.508
+Shape: oscillating (spike at ckpt 7)
+Trajectory: █▇▄▂▃▃▁▃▂ 
+Losses: [1.234, 1.211, 1.031, 0.906, 0.961, 0.934, 0.84, 0.953, 0.883, 0.727]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (19 words):
+Is it ethical for a company that starts selling prosthetics to the military to start also selling explosive weapons?
+
+COMPRESSION (12 words, ratio=0.63x):
+company: prosthetics -> military | ethics question: selling explosive weapons post-prosthetics sales
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 50/67  idx=249  conf=0.678  var=0.095  max_rise=0.113  total_drop=0.328
+Shape: oscillating (spike at ckpt 4)
+Trajectory: █▂  ▂  ▁▂ 
+Losses: [0.652, 0.414, 0.352, 0.318, 0.432, 0.33, 0.334, 0.369, 0.408, 0.324]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (18 words):
+On a scale 1-10 how would you rate the pain relief effect of Novalgin based on available statistics.
+
+COMPRESSION (10 words, ratio=0.56x):
+Novalgin pain relief rating 1-10 | based on available statistics
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 51/67  idx=68  conf=0.593  var=0.142  max_rise=0.111  total_drop=0.502
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▅▃▂▁▂▃ ▂ 
+Losses: [0.844, 0.703, 0.57, 0.523, 0.432, 0.494, 0.551, 0.375, 0.486, 0.342]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (21 words):
+If  you found yourself  washed  up on  a  deserted tropical island with no hope for immediate rescue, what  would  you do?
+
+COMPRESSION (10 words, ratio=0.48x):
+deserted tropical island | no rescue hope | survival strategy
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 52/67  idx=137  conf=0.681  var=0.067  max_rise=0.111  total_drop=0.236
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▂▂▃▁▃▃ ▃ 
+Losses: [0.547, 0.385, 0.371, 0.416, 0.336, 0.41, 0.391, 0.295, 0.406, 0.311]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (21 words):
+Tell me which of the following are states in the United States of America: Washington, Oregon, California, Idaho, Toronto, Canada, England.
+
+COMPRESSION (12 words, ratio=0.57x):
+US states: Washington, Oregon, California, Idaho | Toronto, Canada, England: not US
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 53/67  idx=107  conf=0.581  var=0.103  max_rise=0.109  total_drop=0.289
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▅   ▂ ▁▃▁
+Losses: [0.789, 0.664, 0.484, 0.453, 0.453, 0.562, 0.461, 0.516, 0.594, 0.5]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (45 words):
+You are an AI assistant. User will you give you a task. Your goal is to complete the task as faithfully as you can. While performing the task think step-by-step and justify your steps.
+
+Answer the question...who appoints the chief justice of the supreme court??
+
+COMPRESSION (8 words, ratio=0.18x):
+Chief Justice appointment: President nominates | Senate confirms
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 54/67  idx=183  conf=0.414  var=0.149  max_rise=0.109  total_drop=0.441
+Shape: oscillating (spike at ckpt 7)
+Trajectory: █▃▂▂▁  ▁ ▁
+Losses: [1.289, 0.984, 0.887, 0.918, 0.848, 0.762, 0.738, 0.848, 0.801, 0.848]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (27 words):
+so either big buttons or a system that accounts for each different choice and assigns a type of behaviour like disco elysium does, thanks that was helpful
+
+COMPRESSION (17 words, ratio=0.63x):
+button system | either big buttons OR choice-based system assigning behavior types | disco elysium approach helpful
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 55/67  idx=217  conf=0.525  var=0.189  max_rise=0.109  total_drop=0.678
+Shape: oscillating (spike at ckpt 7)
+Trajectory: █▃ ▁ ▁▁▃▁ 
+Losses: [1.148, 0.809, 0.551, 0.609, 0.5, 0.598, 0.617, 0.727, 0.566, 0.471]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (22 words):
+So how does the small intestine absorb the sugar and put it into the blood? Are there special cells to do this?
+
+COMPRESSION (9 words, ratio=0.41x):
+small intestine absorption: sugar -> blood | special cells?
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 56/67  idx=280  conf=0.503  var=0.393  max_rise=0.109  total_drop=1.164
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▆▄▄▂▂    
+Losses: [1.508, 1.289, 0.938, 0.953, 0.66, 0.77, 0.359, 0.41, 0.344, 0.344]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (30 words):
+You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.
+
+Translate to Turkish:
+
+Serbia tackles issue of violence against women
+
+Turkish:
+
+COMPRESSION (8 words, ratio=0.27x):
+Serbia | tackles | violence against women issue
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 57/67  idx=157  conf=0.578  var=0.067  max_rise=0.107  total_drop=0.160
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▅▄▁ ▃▁ ▁▂
+Losses: [0.691, 0.625, 0.602, 0.512, 0.467, 0.574, 0.508, 0.48, 0.516, 0.531]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (77 words):
+Build a travel booking app in Django that allows users to browse and book flights, hotels, and rental cars for their trips
+
+Thanks for providing the steps, but could you give me more information on how to implement payment processing and user authentication in the app?
+
+Hey, thanks for the tips on payment processing and user authentication! Could you give me some examples of third-party packages that I can use for these features in my Django app?
+
+COMPRESSION (29 words, ratio=0.38x):
+travel app: Django | features: browse+book flights/hotels/rental cars
+
+payment processing: Django + third-party packages | auth: Django + third-party packages
+
+examples: Stripe (payments) | Django-allauth (auth) | django-crispy-forms (forms)
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 58/67  idx=274  conf=0.632  var=0.115  max_rise=0.107  total_drop=0.361
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▅▃▂▁▂▁ ▂ 
+Losses: [0.734, 0.594, 0.52, 0.449, 0.389, 0.438, 0.387, 0.33, 0.438, 0.373]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (92 words):
+You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
+
+Answer a question about this article:
+The first regular broadcasts started on January 1, 2004 when the Belgian company Euro1080 launched the HD1 channel with the traditional Vienna New Year's Concert. Test transmissions had been active since the IBC exhibition in September 2003, but the New Year's Day broadcast marked the official launch of the HD1 channel, and the official start of direct-to-home HDTV in Europe.
+When did regular broadcasts start in Europe?
+
+COMPRESSION (37 words, ratio=0.40x):
+regular broadcasts start Europe: Jan 1, 2004 | Euro1080 company | HD1 channel launch | Vienna New Year's Concert | test transmissions since IBC Sep 2003 | HD1 = first HD channel | direct-to-home HDTV Europe start
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 59/67  idx=6  conf=0.633  var=0.069  max_rise=0.105  total_drop=0.248
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▆▃▁▄▄▄▁▅ 
+Losses: [0.582, 0.523, 0.453, 0.385, 0.475, 0.475, 0.479, 0.395, 0.5, 0.334]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (40 words):
+You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.
+
+What type of thing is the question "What are the most common causes of death in the U.S. ?" asking about?
+
+COMPRESSION (26 words, ratio=0.65x):
+question: "What are the most common causes of death in the U.S.?" | asking about: causes of death | location: United States | type: health statistics
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 60/67  idx=92  conf=0.567  var=0.115  max_rise=0.105  total_drop=0.250
+Shape: oscillating (spike at ckpt 9)
+Trajectory: █▆▃▃▁    ▂
+Losses: [0.816, 0.727, 0.629, 0.594, 0.535, 0.49, 0.469, 0.451, 0.461, 0.566]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (47 words):
+You are an AI assistant. User will you give you a task. Your goal is to complete the task as faithfully as you can. While performing the task think step-by-step and justify your steps.
+
+Generate a sentence, and then tell me the concepts included in that sentence.
+
+COMPRESSION (19 words, ratio=0.40x):
+AI assistant | user task → generate sentence + identify concepts | goal: faithful completion | method: step-by-step reasoning
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 61/67  idx=102  conf=0.576  var=0.105  max_rise=0.105  total_drop=0.301
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▄▃▂▁▁▂ ▂▂
+Losses: [0.82, 0.625, 0.586, 0.555, 0.498, 0.496, 0.555, 0.402, 0.508, 0.52]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (125 words):
+A passive crossover is an electronic circuit that uses a combination of one or more resistors, inductors and capacitors. These components are combined to form a filter network and are most often placed between the full frequency-range power amplifier and the loudspeaker drivers to divide the amplifier's signal into the necessary frequency bands before being delivered to the individual drivers. Passive crossover circuits need no external power beyond the audio signal itself, but have some disadvantages: they may require larger inductors and capacitors due to power handling requirements. Unlike active crossovers which include a built-in amplifier, passive crossovers have an inherent attenuation within the passband, typically leading to a reduction in damping factor before the voice coil
+
+What are the components of a passive crossover?
+
+COMPRESSION (63 words, ratio=0.50x):
+passive crossover components: resistors + inductors + capacitors | filter network | placement: between power amplifier ↔ loudspeaker drivers | function: divide amplifier signal → frequency bands → individual drivers | power: no external beyond audio signal | disadvantages: larger L/C ∵ power handling requirements | vs active: no built-in amplifier | attenuation: inherent passband reduction → damping factor decrease before voice coil
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 62/67  idx=106  conf=0.631  var=0.181  max_rise=0.105  total_drop=0.449
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █▆▆▆▅▇    
+Losses: [0.699, 0.625, 0.625, 0.598, 0.539, 0.645, 0.254, 0.25, 0.285, 0.25]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (31 words):
+Ah so close!
+
+You should have 5 / 7 / 5 syllables per line. But your first line has 6.
+
+Great try though! Would you like to give it another shot?
+
+COMPRESSION (12 words, ratio=0.39x):
+5/7/5 syllables per line | line 1: 6 syllables | suggestion: retry
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 63/67  idx=139  conf=0.567  var=0.078  max_rise=0.105  total_drop=0.215
+Shape: oscillating (spike at ckpt 5)
+Trajectory: █ ▂▃▁▄ ▂▃▂
+Losses: [0.754, 0.482, 0.551, 0.598, 0.531, 0.637, 0.463, 0.559, 0.59, 0.539]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (36 words):
+"Eddy Mitchell", given a list of categories: company, educational institution, artist, athlete, office holder, mean of transportation, building, natural place, village, animal, plant, album, film or written work, what category does the title belong to?
+A:
+
+COMPRESSION (5 words, ratio=0.14x):
+Eddy Mitchell | category: artist
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 64/67  idx=37  conf=0.331  var=0.161  max_rise=0.102  total_drop=0.508
+Shape: oscillating (spike at ckpt 7)
+Trajectory: █▃▁▂▃▂ ▁▂▁
+Losses: [1.539, 1.203, 1.047, 1.094, 1.156, 1.102, 0.906, 1.008, 1.078, 1.031]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (21 words):
+To date how many bricks have been made and what would the estimate weight be if all of them where combined?
+
+COMPRESSION (9 words, ratio=0.43x):
+bricks made # | total estimated weight if combined
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 65/67  idx=146  conf=0.446  var=0.206  max_rise=0.102  total_drop=0.625
+Shape: oscillating (spike at ckpt 8)
+Trajectory: █▅▂▂▂▂▁ ▁▁
+Losses: [1.32, 1.07, 0.828, 0.777, 0.781, 0.84, 0.695, 0.582, 0.684, 0.695]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (40 words):
+You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.
+
+Translate "The Soviet regime sought to erase the memory of the Jews, their historical and cultural heritage in Lithuania." to French?
+
+COMPRESSION (14 words, ratio=0.35x):
+Soviet regime | goal: erase Jewish memory | erase historical/cultural heritage | location: Lithuania
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 66/67  idx=171  conf=0.533  var=0.109  max_rise=0.102  total_drop=0.129
+Shape: oscillating (spike at ckpt 8)
+Trajectory: ▇█▂▂   ▁▃▄
+Losses: [0.812, 0.84, 0.602, 0.602, 0.512, 0.531, 0.543, 0.562, 0.664, 0.684]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (24 words):
+That's a good start, and now, I need to recursively list all files and save their paths and sizes to a pandas dataframe, please.
+
+COMPRESSION (12 words, ratio=0.50x):
+good start → recursively list files | save paths+sizes → pandas df
+
+Quality flags: no obvious quality flags
+
+================================================================================
+Sample 67/67  idx=285  conf=0.524  var=0.116  max_rise=0.102  total_drop=0.410
+Shape: oscillating (spike at ckpt 4)
+Trajectory: █▃▃ ▂▁  ▂ 
+Losses: [0.941, 0.719, 0.727, 0.578, 0.68, 0.598, 0.547, 0.57, 0.641, 0.531]
+Checkpoints: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
+INPUT (66 words):
+Did Morris's approach to design have an impact on future design movements or designers?
+
+Was Morris's approach to design popular during his time or did it take a while for it to gain recognition? I'm just curious about how groundbreaking his ideas were in his era.
+
+Did Morris face any opposition or criticism for his design philosophy during his time? How did he respond to it?
+
+COMPRESSION (36 words, ratio=0.55x):
+Morris design approach → impact: future movements/designers | groundbreaking in era?
+
+Morris popularity during time: limited recognition initially | gained traction posthumously
+
+Morris opposition/criticism: yes (established designers, critics) | response: defended philosophy through practice + publications
+
+Quality flags: no obvious quality flags
